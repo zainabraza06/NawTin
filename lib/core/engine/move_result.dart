@@ -83,7 +83,9 @@ final class MoveResult {
           SwingPattern.armed(after.maskOf(seat), after.maskOf(1 - seat));
       if (seat == mover) moverArmedAfter = armedAfter;
       for (final p in armedAfter) {
-        if (!armedBefore.contains(p)) events.add(SwingEvent(seat, p));
+        // not new if it was armed already, or sits inside an armed treghi
+        final known = armedBefore.any((q) => q == p || q.covers(p));
+        if (!known) events.add(SwingEvent(seat, p));
       }
     }
 

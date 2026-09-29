@@ -151,15 +151,22 @@ abstract final class Rules {
     final captured = m.hasCapture;
     if (captured) theirs &= ~bit(m.capture);
 
-    // The opening turn lets seat 0 place two tokens; otherwise play passes.
-    final continuesTurn = m.isPlacement && s.placesLeft > 1;
-    final nextTurn = continuesTurn ? me : you;
-    final nextPlaces = continuesTurn ? s.placesLeft - 1 : 1;
-
     final mask0 = me == 0 ? mine : theirs;
     final mask1 = me == 0 ? theirs : mine;
     final hand0 = me == 0 ? myHand : s.hand0;
     final hand1 = me == 0 ? s.hand1 : myHand;
+
+    // The opening turn lets seat 0 place two tokens; otherwise play passes.
+    final continuesTurn = m.isPlacement && s.placesLeft > 1;
+    var nextTurn = continuesTurn ? me : you;
+    var nextPlaces = continuesTurn ? s.placesLeft - 1 : 1;
+    // Seat 0 places 2 + 7 tokens while seat 1 places 9 singles, so seat 0 runs
+    // dry first. A seat with nothing left to place is skipped until every
+    // token is down (seat 1 then places its last two in a row).
+    if (hand0 + hand1 > 0 && (nextTurn == 0 ? hand0 : hand1) == 0) {
+      nextTurn = 1 - nextTurn;
+      nextPlaces = 1;
+    }
 
     final key = GameState.keyOf(mask0, mask1, nextTurn);
     // Placements and captures cannot be undone, so the position run restarts.

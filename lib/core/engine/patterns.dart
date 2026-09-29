@@ -66,6 +66,16 @@ final class SwingPattern {
     return (otherStops & (own | opp)) == 0;
   }
 
+  /// Whether this treghi already contains [other] (one of its two begi):
+  /// same fixed tokens (a subset) and stops (a subset). A token swinging from
+  /// one stop of an armed treghi to the next therefore arms the contained
+  /// begi without it counting as a new formation.
+  bool covers(SwingPattern other) =>
+      kind == PatternKind.treghi &&
+      other.kind == PatternKind.begi &&
+      (other.stopsMask & ~stopsMask) == 0 &&
+      (other.fixedMask & ~fixedMask) == 0;
+
   @override
   String toString() =>
       '${kind.name}(stops: $stops, fixed: ${bitsOf(fixedMask).toList()})';
