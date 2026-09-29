@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/engine/engine.dart';
+import '../setup/game_setup.dart';
 
 /// Where the game screen is in its turn cycle. (`idle` and `aiThinking` join
 /// in later stages together with the AI.)
@@ -127,11 +128,11 @@ class GameUiState {
 /// history stack; all rules come from the pure-Dart engine.
 class GameController extends Notifier<GameUiState> {
   @override
-  GameUiState build() => GameUiState.initial(const ['Player 1', 'Player 2']);
+  GameUiState build() => GameUiState.initial(ref.read(setupProvider).names);
 
-  /// Starts a fresh game.
+  /// Starts a fresh game with the names chosen on the setup screen.
   void newGame({List<String>? names}) {
-    state = GameUiState.initial(names ?? state.names);
+    state = GameUiState.initial(names ?? ref.read(setupProvider).names);
   }
 
   /// Handles a tap on board point [p] according to the current status.
