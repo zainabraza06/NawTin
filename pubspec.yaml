@@ -1,0 +1,21 @@
+name: nawtin
+description: "Naw Tin - a premium 2-player and vs-AI board game."
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.3.0 <4.0.0'
+
+# Stage 1 is a pure-Dart rules engine, so no runtime packages are needed yet.
+# State management for later stages: Riverpod (flutter_riverpod).
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
