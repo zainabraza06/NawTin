@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import 'features/game/game_screen.dart';
+import 'app_router.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -24,8 +24,8 @@ class NawTinApp extends StatelessWidget {
       title: 'Naw Tin',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
-      // Stage 3 replaces this with splash / home navigation.
-      home: const GameScreen(),
+      initialRoute: Routes.splash,
+      onGenerateRoute: onGenerateRoute,
     );
   }
 }

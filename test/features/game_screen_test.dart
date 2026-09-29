@@ -19,7 +19,7 @@ Widget app(GlobalKey shot, {MotionPrefs prefs = const MotionPrefs()}) => Provide
         child: MaterialApp(
           debugShowCheckedModeBanner: false,
           theme: buildAppTheme(),
-          home: GameScreen(prefs: prefs),
+          home: GameScreen(prefsOverride: prefs),
         ),
       ),
     );

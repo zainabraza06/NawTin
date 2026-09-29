@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app_router.dart';
 import '../../core/engine/engine.dart';
+import '../../services/settings.dart';
+import '../setup/game_setup.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/action_dock.dart';
 import '../../widgets/aurora_background.dart';
@@ -20,9 +23,10 @@ import 'game_over_overlay.dart';
 /// Portrait game screen: opponent zone (~14%), board zone (~58%) and the
 /// player zone with the action dock (~28%). Two-player mode for now.
 class GameScreen extends ConsumerStatefulWidget {
-  const GameScreen({super.key, this.prefs = const MotionPrefs()});
+  const GameScreen({super.key, this.prefsOverride});
 
-  final MotionPrefs prefs;
+  /// Tests pass fixed prefs; the app reads them from settings.
+  final MotionPrefs? prefsOverride;
 
   @override
   ConsumerState<GameScreen> createState() => _GameScreenState();
@@ -33,7 +37,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
   late final AnimationController _tilt = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 380),
-    value: widget.prefs.reduceMotion ? 0 : 1,
+    value: (widget.prefsOverride?.reduceMotion ?? false) ? 0 : 1,
   );
   late final AnimationController _shake =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 520));
@@ -41,6 +45,8 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
       AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
   late final AnimationController _swipe =
       AnimationController(vsync: this, duration: const Duration(milliseconds: 650));
+
+  MotionPrefs get prefs => widget.prefsOverride ?? ref.read(settingsProvider).motion;
 
   Timer? _retilt;
   List<BannerItem> _banners = const [];
@@ -58,7 +64,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
   }
 
   void _flatten() {
-    if (widget.prefs.reduceMotion) return;
+    if (prefs.reduceMotion) return;
     _tilt.reverse();
     _retilt?.cancel();
     _retilt = Timer(const Duration(milliseconds: 2600), () {
@@ -80,7 +86,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
         });
       }
       final swing = r.announcedSwing;
-      if (swing != null && !widget.prefs.reduceMotion) {
+      if (swing != null && !prefs.reduceMotion) {
         _flashColor = swing.call == Call.treghi ? tk.goldGlow : tk.violet;
         _flash.forward(from: 0);
         swing.call == Call.treghi ? HapticFeedback.heavyImpact() : HapticFeedback.mediumImpact();
@@ -93,15 +99,18 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
       });
       HapticFeedback.selectionClick();
     }
-    if (next.game.turn != prev.game.turn && !widget.prefs.reduceMotion) {
+    if (next.game.turn != prev.game.turn && !prefs.reduceMotion) {
       _swipe.forward(from: 0);
     }
   }
 
   void _onImpact(MoveResult r) {
     HapticFeedback.heavyImpact();
-    if (!widget.prefs.reduceMotion) _shake.forward(from: 0);
+    if (!prefs.reduceMotion) _shake.forward(from: 0);
   }
+
+  void _goHome() =>
+      Navigator.of(context).popUntil((r) => r.settings.name == Routes.home || r.isFirst);
 
   void _openPause() {
     final tk = context.tokens;
@@ -134,6 +143,15 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
                 },
                 child: Text('Restart game', style: tk.heading(NawTinTokens.scaleS, color: tk.textPrimary)),
               ),
+              const SizedBox(height: 8),
+              TextButton(
+                style: TextButton.styleFrom(minimumSize: const Size.fromHeight(52)),
+                onPressed: () {
+                  Navigator.pop(ctx);
+                  _goHome();
+                },
+                child: Text('Quit to home', style: tk.heading(NawTinTokens.scaleS, color: tk.textMuted)),
+              ),
             ],
           ),
         ),
@@ -143,6 +161,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(settingsProvider); // rebuild when motion prefs change
     ref.listen<GameUiState>(gameControllerProvider, _onState);
     final ui = ref.watch(gameControllerProvider);
     final ctl = ref.read(gameControllerProvider.notifier);
@@ -150,12 +169,12 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
 
     return Scaffold(
       body: AuroraBackground(
-        prefs: widget.prefs,
+        prefs: prefs,
         child: AnimatedBuilder(
           animation: _shake,
           builder: (context, child) {
             final v = _shake.value;
-            final amp = widget.prefs.reduceMotion ? 0.0 : 9.0 * (1 - v);
+            final amp = prefs.reduceMotion ? 0.0 : 9.0 * (1 - v);
             return Transform.translate(
               offset: Offset(math.sin(v * 46) * amp, math.cos(v * 39) * amp * 0.7),
               child: child,
@@ -175,10 +194,10 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
                           padding: EdgeInsets.symmetric(horizontal: tk.space2),
                           child: Column(
                             children: [
-                              SizedBox(height: h * 0.14, child: _TopZone(ui: ui, onPause: _openPause)),
+                              SizedBox(height: h * 0.14, child: _TopZone(ui: ui, onPause: _openPause, seconds: ref.watch(setupProvider).turnSeconds)),
                               SizedBox(
                                 height: h * 0.58,
-                                child: _BoardZone(ui: ui, ctl: ctl, tilt: _tilt, onTouch: _flatten, onImpact: _onImpact, prefs: widget.prefs),
+                                child: _BoardZone(ui: ui, ctl: ctl, tilt: _tilt, onTouch: _flatten, onImpact: _onImpact, prefs: prefs),
                               ),
                               SizedBox(height: h * 0.28, child: _BottomZone(ui: ui, ctl: ctl)),
                             ],
@@ -209,7 +228,13 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
                 ),
               ),
               if (ui.status == GameStatus.gameOver)
-                GameOverOverlay(ui: ui, prefs: widget.prefs, onRematch: ctl.newGame),
+                GameOverOverlay(
+                  ui: ui,
+                  prefs: prefs,
+                  onRematch: ctl.newGame,
+                  onChangeMode: () => Navigator.of(context).maybePop(),
+                  onHome: _goHome,
+                ),
             ],
           ),
         ),
@@ -253,9 +278,12 @@ class _SwipePainter extends CustomPainter {
 // ------------------------------------------------------------------ zones
 
 class _TopZone extends StatelessWidget {
-  const _TopZone({required this.ui, required this.onPause});
+  const _TopZone({required this.ui, required this.onPause, required this.seconds});
   final GameUiState ui;
   final VoidCallback onPause;
+
+  /// Per-turn clock (Stage 5 makes the ring count down).
+  final int seconds;
 
   @override
   Widget build(BuildContext context) {
@@ -280,7 +308,7 @@ class _TopZone extends StatelessWidget {
             ),
             SizedBox(width: tk.space1),
             // Stage 5 feeds the ring with the live countdown; two-player is 2:00
-            TimerRing(progress: 1, secondsLeft: 120, accent: tk.seatColor(g.turn)),
+            TimerRing(progress: 1, secondsLeft: seconds, accent: tk.seatColor(g.turn)),
             IconButton(
               tooltip: 'Pause',
               constraints: const BoxConstraints(minWidth: 48, minHeight: 48),

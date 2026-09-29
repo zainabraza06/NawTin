@@ -6,6 +6,7 @@ import '../../core/engine/engine.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_panel.dart';
 import '../../widgets/glow_text.dart';
+import '../../widgets/naw_button.dart';
 import 'game_controller.dart';
 
 /// Winner banner with confetti, per-player stats and a rematch button.
@@ -15,11 +16,15 @@ class GameOverOverlay extends StatefulWidget {
     super.key,
     required this.ui,
     required this.onRematch,
+    required this.onChangeMode,
+    required this.onHome,
     this.prefs = const MotionPrefs(),
   });
 
   final GameUiState ui;
   final VoidCallback onRematch;
+  final VoidCallback onChangeMode;
+  final VoidCallback onHome;
   final MotionPrefs prefs;
 
   @override
@@ -92,17 +97,26 @@ class _GameOverOverlayState extends State<GameOverOverlay>
                     _StatRow(label: 'Lines formed', values: ui.linesFormed, names: ui.names),
                     _StatRow(label: 'Begi / Treghi', values: ui.swings, names: ui.names),
                     SizedBox(height: tk.space3),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 56,
-                      child: FilledButton(
-                        style: FilledButton.styleFrom(
-                          backgroundColor: tk.violet,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tk.radiusL)),
+                    NawButton(label: 'Rematch', icon: Icons.replay_rounded, onPressed: widget.onRematch),
+                    SizedBox(height: tk.space1),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: NawButton(
+                            label: 'Change mode',
+                            style: NawButtonStyle.secondary,
+                            onPressed: widget.onChangeMode,
+                          ),
                         ),
-                        onPressed: widget.onRematch,
-                        child: Text('Rematch', style: tk.heading(NawTinTokens.scaleS)),
-                      ),
+                        SizedBox(width: tk.space1),
+                        Expanded(
+                          child: NawButton(
+                            label: 'Home',
+                            style: NawButtonStyle.secondary,
+                            onPressed: widget.onHome,
+                          ),
+                        ),
+                      ],
                     ),
                   ],
                 ),
