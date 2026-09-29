@@ -1,3 +1,6 @@
+/// Bit helpers for 24-bit board masks.
+library;
+
 /// Tiny bitmask helpers. The whole board fits in 24 bits (one bit per point),
 /// so a set of points is just an `int`.
 

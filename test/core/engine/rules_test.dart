@@ -111,7 +111,7 @@ void main() {
       const a = [0, 2, 4, 6, 9, 11, 13, 15, 17];
       const b = [1, 3, 5, 7, 8, 10, 12, 14, 21];
       var s = GameState.initial();
-      s = play(s, [const Move.place(a[0]), const Move.place(a[1])]);
+      s = play(s, [Move.place(a[0]), Move.place(a[1])]);
       for (var i = 0; i < 7; i++) {
         s = play(s, [Move.place(b[i]), Move.place(a[i + 2])]);
         expect(s.phase, GamePhase.placement);
@@ -134,7 +134,7 @@ void main() {
   group('captures during placement', () {
     test('completing a line by placing lets the mover eat a token', () {
       final s = st([0, 1], [8, 16], hand0: 5, hand1: 5);
-      final step = const Move.place(2);
+      const step = Move.place(2);
       expect(Rules.linesFormedByStep(s, step), 1 << 0);
       expect(Rules.captureTargets(s, step), maskOf([8, 16]));
       final moves = Rules.legalMoves(s);
@@ -208,7 +208,7 @@ void main() {
     test('slide completing a line captures; protected tokens are skipped', () {
       // seat 1 has a finished line 12-13-14 plus loose token 20
       final s = st([0, 1, 3], [12, 13, 14, 20]);
-      final step = const Move.slide(3, 2);
+      const step = Move.slide(3, 2);
       expect(Rules.linesFormedByStep(s, step), 1 << 0);
       expect(Rules.captureTargets(s, step), maskOf([20]));
       final after = Rules.apply(s, const Move.slide(3, 2, capture: 20));
