@@ -9,9 +9,16 @@ enum Call { phutas, machyas, begi, treghi }
 
 /// A begi/treghi that has just formed for [seat].
 final class SwingEvent {
-  const SwingEvent(this.seat, this.pattern);
+  const SwingEvent(this.seat, this.pattern, {this.readyOnly = false});
+
+  /// The seat that benefits (credited even when the opponent's move caused it).
   final int seat;
   final SwingPattern pattern;
+
+  /// True when formed during placement: the setup is real, but tokens cannot
+  /// swing until movement starts. The UI shows it as "Begi ready" / "Treghi
+  /// ready" instead of promising an immediate swing.
+  final bool readyOnly;
 
   Call get call =>
       pattern.kind == PatternKind.treghi ? Call.treghi : Call.begi;
@@ -85,7 +92,10 @@ final class MoveResult {
       for (final p in armedAfter) {
         // not new if it was armed already, or sits inside an armed treghi
         final known = armedBefore.any((q) => q == p || q.covers(p));
-        if (!known) events.add(SwingEvent(seat, p));
+        if (!known) {
+          events.add(SwingEvent(seat, p,
+              readyOnly: after.phase == GamePhase.placement));
+        }
       }
     }
 

@@ -418,6 +418,57 @@ void main() {
     });
   });
 
+  group('agreed edge cases', () {
+    test("seat 1's closing double: the second token can complete a line", () {
+      // seat 0 is out of tokens; seat 1 has two left and places both in a row
+      final s = st([8, 10, 12, 22], [0, 1], hand0: 0, hand1: 2, turn: 1);
+      final r1 = MoveResult.resolve(s, const Move.place(2, capture: 8));
+      expect(r1.isMachyas, isTrue);
+      expect(r1.after.turn, 1, reason: 'seat 0 has nothing to place');
+      expect(r1.after.phase, GamePhase.placement);
+      final r2 = MoveResult.resolve(r1.after, const Move.place(20));
+      expect(r2.after.phase, GamePhase.movement);
+      expect(r2.after.turn, 0, reason: 'seat 0 moves first afterwards');
+
+      // and the last token itself may complete the line and eat (Machyas)
+      final s2 = st([8, 10, 12, 22], [0, 1], hand0: 0, hand1: 2, turn: 1);
+      final a = Rules.apply(s2, const Move.place(20));
+      expect(a.turn, 1);
+      final r3 = MoveResult.resolve(a, const Move.place(2, capture: 12));
+      expect(r3.isMachyas, isTrue);
+      expect(r3.after.phase, GamePhase.movement);
+      expect(r3.after.turn, 0);
+    });
+
+    test('a setup that is blocked and then unblocked is announced again, '
+        'credited to the player who benefits', () {
+      final s = st([0, 6, 7, 9, 17], [1, 12, 13, 14], turn: 1);
+      expect(SwingPattern.armed(s.mask0, s.mask1), isEmpty);
+      final r = MoveResult.resolve(s, const Move.slide(1, 2)); // opponent moves
+      expect(r.swingEvents.length, 1);
+      expect(r.swingEvents.single.seat, 0);
+      expect(r.swingEvents.single.call, Call.begi);
+      expect(r.swingEvents.single.readyOnly, isFalse);
+    });
+
+    test('a begi formed during placement is "ready only"', () {
+      final s = st([0, 6, 7, 9], [20], hand0: 5, hand1: 5);
+      final r = MoveResult.resolve(s, const Move.place(17));
+      expect(r.swingEvents.length, 1);
+      expect(r.swingEvents.single.call, Call.begi);
+      expect(r.swingEvents.single.readyOnly, isTrue);
+    });
+
+    test('an announced begi that grows into a treghi announces Treghi', () {
+      // begi 0<->1 is armed; the last treghi token arrives (5 -> 4)
+      final s = st([0, 3, 5, 6, 7, 9, 17], [12, 13, 14, 20]);
+      expect(SwingPattern.armed(s.mask0, s.mask1).map((p) => p.kind),
+          [PatternKind.begi]);
+      final r = MoveResult.resolve(s, const Move.slide(5, 4));
+      expect(r.announcedSwing!.call, Call.treghi);
+    });
+  });
+
   group('random play-outs', () {
     test('engine invariants hold over many random games', () {
       final rnd = Random(2024);
