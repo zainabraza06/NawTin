@@ -11,6 +11,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_riverpod: ^3.4.3
+  google_fonts: ^9.0.0
 
 dev_dependencies:
   flutter_test:
