@@ -9,6 +9,7 @@ import 'app_router.dart';
 import 'services/prefs_store.dart';
 import 'services/settings.dart';
 import 'theme/tokens.dart';
+import 'widgets/friendly_error.dart';
 import 'services/sound/audio_sound_service.dart';
 import 'services/sound/sound_service.dart';
 import 'theme/app_theme.dart';
@@ -17,6 +18,10 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // fonts are bundled in assets/google_fonts: never hit the network for them
   GoogleFonts.config.allowRuntimeFetching = false;
+  // players never see a red error screen or a stack trace in release builds
+  if (kReleaseMode) {
+    ErrorWidget.builder = (details) => FriendlyError(detail: details.exceptionAsString());
+  }
   LicenseRegistry.addLicense(() async* {
     yield const LicenseEntryWithLineBreaks(
       ['Bungee', 'Sora', 'Inter', 'Space Grotesk'],

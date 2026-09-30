@@ -1,7 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../core/engine/engine.dart';
 import '../theme/tokens.dart';
+import '../features/game/announcements.dart';
 import 'board_fx.dart';
 import 'board_painter.dart';
 import '../services/haptics.dart';
@@ -27,6 +30,7 @@ class BoardView extends StatefulWidget {
     this.onImpact,
     this.prefs = const MotionPrefs(),
     this.semanticsLabel = 'Naw Tin board',
+    this.seatNames = const ['Player 1', 'Player 2'],
   });
 
   final GameState game;
@@ -53,6 +57,9 @@ class BoardView extends StatefulWidget {
   final ValueChanged<MoveResult>? onImpact;
   final MotionPrefs prefs;
   final String semanticsLabel;
+
+  /// Names spoken by screen readers for each point's occupant.
+  final List<String> seatNames;
 
   @override
   State<BoardView> createState() => _BoardViewState();
@@ -183,6 +190,7 @@ class _BoardViewState extends State<BoardView> with TickerProviderStateMixin {
                   },
                 ),
                   ),
+                  ..._pointSemantics(size),
                 ],
               ),
             );
@@ -190,5 +198,35 @@ class _BoardViewState extends State<BoardView> with TickerProviderStateMixin {
         ),
       ),
     );
+  }
+
+  /// One invisible, focusable 48px target per board point so screen-reader
+  /// users can hear the board and play it (the painted board is a canvas).
+  Iterable<Widget> _pointSemantics(Size size) sync* {
+    final side = math.min(size.width, size.height);
+    final m = side * 0.09;
+    final u = (side - 2 * m) / 6;
+    final ox = (size.width - side) / 2, oy = (size.height - side) / 2;
+    for (var p = 0; p < Board.pointCount; p++) {
+      final g = Board.gridOf(p);
+      yield Positioned(
+        left: ox + m + g[0] * u - 24,
+        top: oy + m + g[1] * u - 24,
+        width: 48,
+        height: 48,
+        child: Semantics(
+          button: true,
+          label: pointLabel(
+            p,
+            widget.game,
+            widget.seatNames,
+            capturable: widget.captureMask & bit(p) != 0,
+            target: widget.targets & bit(p) != 0,
+          ),
+          onTap: () => widget.onPointTap(p),
+          child: const SizedBox.expand(),
+        ),
+      );
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.dart';
@@ -21,6 +22,7 @@ import '../../widgets/glass_panel.dart';
 import '../../widgets/player_card.dart';
 import '../../widgets/timer_ring.dart';
 import 'ad_gate_sheet.dart';
+import 'announcements.dart';
 import 'game_controller.dart';
 import 'game_over_overlay.dart';
 import 'pause_overlay.dart';
@@ -59,6 +61,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
   final List<Timer> _later = [];
 
   void _sfx(Sfx s) => ref.read(soundServiceProvider).play(s);
+
+  /// Spoken by screen readers (TalkBack / VoiceOver); ignored otherwise.
+  void _say(String text) {
+    if (!mounted) return;
+    SemanticsService.sendAnnouncement(View.of(context), text, TextDirection.ltr);
+  }
 
   /// Plays [s] after [seconds] (so it lines up with the animation beat).
   void _sfxAt(double seconds, Sfx s) {
@@ -121,6 +129,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
           _bannerSerial++;
         });
       }
+      _say(announceMove(r, next.names));
       final tl = FxTimeline(r);
       r.move.isPlacement ? _sfxAt(tl.moveEnd * 0.68, Sfx.place) : _sfxAt(0, Sfx.move);
       final announced = r.announcedSwing;
@@ -146,6 +155,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _swipe.forward(from: 0);
     }
     if (next.timeoutSerial != prev.timeoutSerial) _announceTimeout(next);
+    if (next.hintText != null && next.hintText != prev.hintText) _say(next.hintText!);
     if (prev.status != GameStatus.gameOver && next.status == GameStatus.gameOver) _gameOverSound(next);
   }
 
@@ -617,6 +627,7 @@ class _BoardZone extends StatelessWidget {
                           },
                           onFxDone: ctl.finishAnimation,
                           onImpact: onImpact,
+                          seatNames: ui.names,
                           semanticsLabel:
                               'Naw Tin board. ${ui.names[g.turn]} to play. $_caption',
                         ),
