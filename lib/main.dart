@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_router.dart';
 import 'services/prefs_store.dart';
+import 'services/sound/audio_sound_service.dart';
+import 'services/sound/sound_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -26,8 +28,16 @@ Future<void> main() async {
     statusBarIconBrightness: Brightness.light,
   ));
   final prefs = await SharedPreferences.getInstance();
+  final audio = AudioSoundService(voices: await loadVoiceAssets());
   runApp(ProviderScope(
-    overrides: [prefsStoreProvider.overrideWithValue(SharedPrefsStore(prefs))],
+    overrides: [
+      prefsStoreProvider.overrideWithValue(SharedPrefsStore(prefs)),
+      soundServiceProvider.overrideWith((ref) {
+        bindSoundSettings(ref, audio);
+        ref.onDispose(audio.dispose);
+        return audio;
+      }),
+    ],
     child: const NawTinApp(),
   ));
 }

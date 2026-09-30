@@ -8,11 +8,13 @@ import '../../app_router.dart';
 import '../../core/engine/engine.dart';
 import '../../services/ads/ads_service.dart';
 import '../../services/settings.dart';
+import '../../services/sound/sound_service.dart';
 import '../../services/turn_clock.dart';
 import '../setup/game_setup.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/action_dock.dart';
 import '../../widgets/aurora_background.dart';
+import '../../widgets/board_fx.dart';
 import '../../widgets/board_view.dart';
 import '../../widgets/call_banner.dart';
 import '../../widgets/glass_panel.dart';
@@ -54,6 +56,17 @@ class _GameScreenState extends ConsumerState<GameScreen>
   MotionPrefs get prefs => widget.prefsOverride ?? ref.read(settingsProvider).motion;
 
   Timer? _retilt;
+  final List<Timer> _later = [];
+
+  void _sfx(Sfx s) => ref.read(soundServiceProvider).play(s);
+
+  /// Plays [s] after [seconds] (so it lines up with the animation beat).
+  void _sfxAt(double seconds, Sfx s) {
+    final t = Timer(Duration(milliseconds: (seconds * 1000).round()), () {
+      if (mounted) _sfx(s);
+    });
+    _later.add(t);
+  }
   List<BannerItem> _banners = const [];
   int _bannerSerial = 0;
   Color _flashColor = Colors.white;
@@ -76,6 +89,9 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _retilt?.cancel();
+    for (final t in _later) {
+      t.cancel();
+    }
     _tilt.dispose();
     _shake.dispose();
     _flash.dispose();
@@ -105,6 +121,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
           _bannerSerial++;
         });
       }
+      final tl = FxTimeline(r);
+      r.move.isPlacement ? _sfxAt(tl.moveEnd * 0.68, Sfx.place) : _sfxAt(0, Sfx.move);
+      final announced = r.announcedSwing;
+      if (announced != null) {
+        _sfxAt(tl.waveStart + 0.25, announced.call == Call.treghi ? Sfx.treghi : Sfx.begi);
+      }
       final swing = r.announcedSwing;
       if (swing != null && !prefs.reduceMotion) {
         _flashColor = swing.call == Call.treghi ? tk.goldGlow : tk.violet;
@@ -113,6 +135,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       }
     }
     if (next.phutasSerial != prev.phutasSerial) {
+      _sfx(Sfx.phutas);
       setState(() {
         _banners = const [phutasBanner];
         _bannerSerial++;
@@ -123,6 +146,24 @@ class _GameScreenState extends ConsumerState<GameScreen>
       _swipe.forward(from: 0);
     }
     if (next.timeoutSerial != prev.timeoutSerial) _announceTimeout(next);
+    if (prev.status != GameStatus.gameOver && next.status == GameStatus.gameOver) _gameOverSound(next);
+  }
+
+  /// Fanfare for the winner (or either player in two-player), a sad run for a
+  /// loss against the AI, a neutral pair for a draw.
+  void _gameOverSound(GameUiState ui) {
+    final result = ui.game.result;
+    if (result == null) return;
+    final ai = ref.read(setupProvider).aiSeat;
+    final Sfx s;
+    if (result.isDraw) {
+      s = Sfx.draw;
+    } else if (ai != null && result.winner == ai) {
+      s = Sfx.lose;
+    } else {
+      s = Sfx.win;
+    }
+    _sfxAt(0.7, s);
   }
 
   void _announceTimeout(GameUiState ui) {
@@ -140,6 +181,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
           : '$name ran out of time. A move was played for them. One more timeout and they lose.';
     }
     Haptics.heavy();
+    _sfx(Sfx.warning);
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
@@ -159,11 +201,18 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final sec = next.secondsLeft;
     if (sec == _lastSecond) return;
     _lastSecond = sec;
-    if (sec == 30) Haptics.medium();
-    if (sec <= 10 && sec > 0) Haptics.heavy();
+    if (sec == 30) {
+      Haptics.medium();
+      _sfx(Sfx.warning);
+    }
+    if (sec <= 10 && sec > 0) {
+      Haptics.heavy();
+      _sfx(Sfx.tick);
+    }
   }
 
   void _onImpact(MoveResult r) {
+    _sfx(Sfx.machyas);
     Haptics.heavy();
     if (!prefs.reduceMotion) _shake.forward(from: 0);
   }
