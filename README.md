@@ -51,8 +51,13 @@ they run in an isolate and in plain Dart.
 
 Difficulty is search depth only: Easy 2, Medium 4, Hard 6, with a time cap per
 move. Easy cannot see begi/treghi; Medium and Hard can. The search runs on a
-background isolate. Timeouts auto-play with the *Easy* config, never the Hard
-hint search.
+background isolate.
+
+**When the turn clock runs out** (the usual casual-game practice): the first
+timeout plays a simple legal move for the player (the Easy-level search, never
+random and never the Hard hint search, and it also picks which token to eat). A
+second timeout **in a row** forfeits the game. Any move the player makes
+themselves clears the warning, so only repeated neglect is punished.
 
 Strength (self-play, `dart run tool/self_play.dart 100 120 30`): Hard beats Easy
 88-10, Medium beats Easy 82-17.

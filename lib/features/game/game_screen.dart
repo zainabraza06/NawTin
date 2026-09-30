@@ -183,12 +183,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final String msg;
     if (ui.timeoutDisqualified) {
       msg = you
-          ? 'Out of time again. You are disqualified.'
-          : '$name ran out of time twice and is disqualified.';
+          ? 'Out of time twice in a row. You are disqualified.'
+          : '$name ran out of time twice in a row and is disqualified.';
     } else {
       msg = you
-          ? 'Time is up! A move was played for you. One more timeout and you lose.'
-          : '$name ran out of time. A move was played for them. One more timeout and they lose.';
+          ? 'Time is up! A move was played for you. One more timeout in a row and you lose.'
+          : '$name ran out of time. A move was played for them. One more timeout in a row and they lose.';
     }
     Haptics.heavy();
     _sfx(Sfx.warning);

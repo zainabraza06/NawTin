@@ -107,7 +107,8 @@ class GameUiState {
   /// Positions before every played move (rewind steps back through these).
   final List<HistoryEntry> history;
 
-  /// Timeouts per seat. The first auto-plays a move, the second disqualifies.
+  /// Timeouts in a row per seat. The first auto-plays a move, a second one in a
+  /// row disqualifies; any move the player makes themselves resets the count.
   final List<int> timeouts;
 
   /// Who timed out last, and a counter so the UI can announce it once.
@@ -302,7 +303,9 @@ class GameController extends Notifier<GameUiState> {
     }
   }
 
-  void _commit(Move move) {
+  /// Plays [move]. A move the player makes themselves ([auto] false) clears
+  /// their timeout count: only timeouts IN A ROW lead to disqualification.
+  void _commit(Move move, {bool auto = false}) {
     final s = state;
     final result = MoveResult.resolve(s.game, move);
     final mover = result.mover;
@@ -318,8 +321,11 @@ class GameController extends Notifier<GameUiState> {
       swings = bump(swings, e.seat, 1);
     }
 
+    final timeouts = auto ? s.timeouts : ([...s.timeouts]..[mover] = 0);
+
     state = s.copyWith(
       game: result.after,
+      timeouts: timeouts,
       status: GameStatus.animating,
       selected: null,
       targets: 0,
@@ -487,7 +493,7 @@ class GameController extends Notifier<GameUiState> {
     }
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!ref.mounted || gen != _generation || state.status != GameStatus.autoPlaying) return;
-    _commit(move);
+    _commit(move, auto: true);
   }
 
   // ---------------------------------------------------------- hints & rewind

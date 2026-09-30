@@ -155,7 +155,7 @@ void main() {
       expect(ui(c).timeoutDisqualified, isTrue);
     });
 
-    test('timeouts are counted per player', () async {
+    test('timeouts are counted per player, and only in a row', () async {
       final c = make();
       tap(c, 0);
       tap(c, 4); // seat 0 has opened; seat 1 has two tokens to place
@@ -164,15 +164,33 @@ void main() {
       await settle(c);
       ctl(c).finishAnimation(ui(c).fxSerial);
       expect(ui(c).timeouts, [0, 1]);
-      // ... plays its second token itself, then seat 0 times out once
+      // ... then plays its second token itself: the warning is cleared
       final free = [9, 11, 13].firstWhere((p) => ui(c).game.emptyMask & bit(p) != 0);
       tap(c, free);
+      expect(ui(c).timeouts, [0, 0], reason: 'a move you make yourself resets the count');
       expect(ui(c).game.turn, 0);
+      // seat 0 times out once: still only a warning
       c.read(clockProvider.notifier).advance(120000);
       await settle(c);
       ctl(c).finishAnimation(ui(c).fxSerial);
-      expect(ui(c).timeouts, [1, 1]);
+      expect(ui(c).timeouts, [1, 0]);
       expect(ui(c).isOver, isFalse);
+    });
+
+    test('two timeouts separated by a normal move do not disqualify', () async {
+      final c = make();
+      c.read(clockProvider.notifier).advance(120000); // lapse 1
+      await settle(c);
+      ctl(c).finishAnimation(ui(c).fxSerial);
+      final free = [9, 11, 13].firstWhere((p) => ui(c).game.emptyMask & bit(p) != 0);
+      tap(c, free); // plays the rest of the opening turn themselves
+      expect(ui(c).timeouts[0], 0);
+      tap(c, 20);
+      tap(c, 22); // seat 1's opening turn
+      c.read(clockProvider.notifier).advance(120000); // lapse 2, later in the game
+      expect(ui(c).status, GameStatus.autoPlaying, reason: 'not disqualified');
+      expect(ui(c).timeouts[0], 1);
+      await settle(c);
     });
 
     test('a timeout while choosing a capture eats a token on the same step', () async {
