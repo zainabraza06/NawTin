@@ -11,8 +11,8 @@ class ActionDock extends StatelessWidget {
     required this.phutasReady,
     required this.onPhutas,
     this.showAssist = false,
-    this.hintAds = 1,
-    this.rewindAds = 3,
+    this.hintBadge = '1-2 ads',
+    this.rewindBadge = '3 ads',
     this.onHint,
     this.onRewind,
   });
@@ -22,8 +22,8 @@ class ActionDock extends StatelessWidget {
 
   /// Whether Hint / Rewind are shown (vs-AI only).
   final bool showAssist;
-  final int hintAds;
-  final int rewindAds;
+  final String hintBadge;
+  final String rewindBadge;
   final VoidCallback? onHint;
   final VoidCallback? onRewind;
 
@@ -46,22 +46,24 @@ class ActionDock extends StatelessWidget {
     return Row(
       children: [
         Expanded(
+          flex: 3,
           child: DockPill(
             label: 'Hint',
             icon: Icons.lightbulb_outline_rounded,
-            badge: '$hintAds ${hintAds == 1 ? "ad" : "ads"}',
+            badge: hintBadge,
             enabled: onHint != null,
             onTap: onHint ?? () {},
           ),
         ),
         SizedBox(width: tk.space1),
-        Expanded(flex: 2, child: phutas),
+        Expanded(flex: 4, child: phutas),
         SizedBox(width: tk.space1),
         Expanded(
+          flex: 3,
           child: DockPill(
             label: 'Rewind',
             icon: Icons.replay_rounded,
-            badge: '$rewindAds ads',
+            badge: rewindBadge,
             enabled: onRewind != null,
             onTap: onRewind ?? () {},
           ),
@@ -183,35 +185,55 @@ class _DockPillState extends State<DockPill> with SingleTickerProviderStateMixin
               ),
               child: child,
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(widget.icon, size: 22, color: on ? fg : tk.textMuted.withValues(alpha: 0.5)),
-                const SizedBox(width: 8),
-                Flexible(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        widget.label,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: tk.heading(
-                          NawTinTokens.scaleS,
-                          color: on ? fg : tk.textMuted.withValues(alpha: 0.5),
-                        ),
-                      ),
-                      if (widget.badge != null)
-                        Text(widget.badge!, style: tk.body(NawTinTokens.scaleXS, color: on ? fg.withValues(alpha: 0.8) : tk.textMuted.withValues(alpha: 0.5))),
-                    ],
-                  ),
-                ),
-              ],
-            ),
+            child: widget.primary ? _row(tk, on, fg) : _stack(tk, on, fg),
           ),
         ),
       ),
+    );
+  }
+
+  Widget _row(NawTinTokens tk, bool on, Color fg) {
+    final dim = tk.textMuted.withValues(alpha: 0.5);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(widget.icon, size: 22, color: on ? fg : dim),
+        const SizedBox(width: 8),
+        Flexible(
+          child: Text(
+            widget.label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: tk.heading(NawTinTokens.scaleS, color: on ? fg : dim),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Narrow assist pills stack icon, label and ad cost so nothing is squeezed.
+  Widget _stack(NawTinTokens tk, bool on, Color fg) {
+    final dim = tk.textMuted.withValues(alpha: 0.5);
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(widget.icon, size: 20, color: on ? fg : dim),
+        const SizedBox(height: 2),
+        Text(
+          widget.label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: tk.heading(NawTinTokens.scaleXS + 1, color: on ? fg : dim),
+        ),
+        if (widget.badge != null)
+          Text(
+            widget.badge!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: tk.body(NawTinTokens.scaleXS - 2, color: on ? tk.lime : dim),
+          ),
+      ],
     );
   }
 }

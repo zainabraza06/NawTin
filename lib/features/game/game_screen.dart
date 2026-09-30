@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.dart';
 import '../../core/engine/engine.dart';
+import '../../services/ads/ads_service.dart';
 import '../../services/settings.dart';
 import '../../services/turn_clock.dart';
 import '../setup/game_setup.dart';
@@ -18,6 +19,7 @@ import '../../widgets/call_banner.dart';
 import '../../widgets/glass_panel.dart';
 import '../../widgets/player_card.dart';
 import '../../widgets/timer_ring.dart';
+import 'ad_gate_sheet.dart';
 import 'game_controller.dart';
 import 'game_over_overlay.dart';
 import 'pause_overlay.dart';
@@ -169,6 +171,41 @@ class _GameScreenState extends ConsumerState<GameScreen>
   void _goHome() =>
       Navigator.of(context).popUntil((r) => r.settings.name == Routes.home || r.isFirst);
 
+  Future<void> _hint() async {
+    final ctl = ref.read(gameControllerProvider.notifier);
+    final level = await showHintChooser(context);
+    if (level == null || !mounted) return;
+    final best = level == 2;
+    final granted = await showAdGate(
+      context,
+      title: best ? 'Watch 2 ads to see the best move?' : 'Watch 1 ad to see a warning?',
+      body: best
+          ? 'You get a warning about the position and the best move, highlighted on the board.'
+          : 'You get a warning about what your opponent is up to. It will not show the move.',
+      ads: best ? AdCosts.hintBestMove : AdCosts.hintWarning,
+      icon: Icons.lightbulb_rounded,
+      run: (onStart, onProgress) =>
+          ctl.watchAds(best ? AdCosts.hintBestMove : AdCosts.hintWarning, onStart: onStart, onProgress: onProgress),
+    );
+    if (!granted || !mounted) return;
+    best ? await ctl.applyBestMoveHint() : ctl.applyWarningHint();
+  }
+
+  Future<void> _rewind() async {
+    final ctl = ref.read(gameControllerProvider.notifier);
+    final granted = await showAdGate(
+      context,
+      title: 'Watch 3 ads to rewind?',
+      body: 'Undo your last move and the reply. Captured tokens come back and your clock restarts.',
+      ads: AdCosts.rewind,
+      icon: Icons.replay_rounded,
+      run: (onStart, onProgress) =>
+          ctl.watchAds(AdCosts.rewind, onStart: onStart, onProgress: onProgress),
+    );
+    if (!granted || !mounted) return;
+    ctl.rewind();
+  }
+
   void _pressPause() {
     final ctl = ref.read(gameControllerProvider.notifier);
     if (ctl.pause()) return;
@@ -228,7 +265,14 @@ class _GameScreenState extends ConsumerState<GameScreen>
                                 height: h * 0.58,
                                 child: _BoardZone(ui: ui, ctl: ctl, tilt: _tilt, onTouch: _flatten, onImpact: _onImpact, prefs: prefs),
                               ),
-                              SizedBox(height: h * 0.28, child: _BottomZone(ui: ui, ctl: ctl, seat: _bottomSeat(ref.watch(setupProvider)))),
+                              SizedBox(height: h * 0.28, child: _BottomZone(
+                                  ui: ui,
+                                  ctl: ctl,
+                                  seat: _bottomSeat(ref.watch(setupProvider)),
+                                  vsAi: ref.watch(setupProvider).mode == GameMode.vsAi,
+                                  onHint: ctl.canAssist ? _hint : null,
+                                  onRewind: ctl.canRewind ? _rewind : null,
+                                )),
                             ],
                           ),
                         );
@@ -512,6 +556,7 @@ class _BoardZone extends StatelessWidget {
                           targets: ui.targets,
                           captureMask: ui.captureMask,
                           pending: ui.pendingStep,
+                          hint: ui.hintMove,
                           lastResult: ui.lastResult,
                           fxSerial: ui.fxSerial,
                           phutasLines: ui.phutasLines,
@@ -535,17 +580,46 @@ class _BoardZone extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 40,
+          height: 58,
           child: Center(
             child: AnimatedSwitcher(
               duration: tk.medium,
-              child: Text(
-                _caption,
-                key: ValueKey(_caption),
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: tk.body(NawTinTokens.scaleXS, color: tk.textPrimary.withValues(alpha: 0.85)),
-              ),
+              child: ui.hintText != null
+                  ? GestureDetector(
+                      key: const ValueKey('hint'),
+                      onTap: ctl.clearHint,
+                      child: Container(
+                        margin: const EdgeInsets.only(bottom: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(tk.radiusM),
+                          color: tk.lime.withValues(alpha: 0.12),
+                          border: Border.all(color: tk.lime.withValues(alpha: 0.5)),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(Icons.lightbulb_rounded, color: tk.lime, size: 20),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                ui.hintText!,
+                                maxLines: 3,
+                                overflow: TextOverflow.ellipsis,
+                                style: tk.body(NawTinTokens.scaleXS, color: tk.textPrimary),
+                              ),
+                            ),
+                            Icon(Icons.close_rounded, color: tk.textMuted, size: 18),
+                          ],
+                        ),
+                      ),
+                    )
+                  : Text(
+                      _caption,
+                      key: ValueKey(_caption),
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: tk.body(NawTinTokens.scaleXS, color: tk.textPrimary.withValues(alpha: 0.85)),
+                    ),
             ),
           ),
         ),
@@ -555,9 +629,19 @@ class _BoardZone extends StatelessWidget {
 }
 
 class _BottomZone extends StatelessWidget {
-  const _BottomZone({required this.ui, required this.ctl, required this.seat});
+  const _BottomZone({
+    required this.ui,
+    required this.ctl,
+    required this.seat,
+    required this.vsAi,
+    required this.onHint,
+    required this.onRewind,
+  });
   final GameUiState ui;
   final GameController ctl;
+  final bool vsAi;
+  final VoidCallback? onHint;
+  final VoidCallback? onRewind;
 
   /// The seat shown at the bottom (the human player).
   final int seat;
@@ -577,6 +661,9 @@ class _BottomZone extends StatelessWidget {
             ActionDock(
               phutasReady: ui.phutasReady && ui.status != GameStatus.gameOver,
               onPhutas: ctl.callPhutas,
+              showAssist: vsAi,
+              onHint: onHint,
+              onRewind: onRewind,
             ),
           ],
         ),

@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ai/ai.dart';
 import '../../core/engine/engine.dart';
+import '../../core/ai/hint_analyzer.dart';
+import '../../services/ads/ads_provider.dart';
+import '../../services/ads/ads_service.dart';
 import '../../services/ai_provider.dart';
 import '../../services/turn_clock.dart';
 import '../setup/game_setup.dart';
@@ -11,6 +14,17 @@ import '../setup/game_setup.dart';
 enum GameStatus { awaitingInput, capturePick, animating, aiThinking, autoPlaying, gameOver }
 
 const Object _keep = Object();
+
+/// A position before a played move plus the running stats at that moment, so
+/// rewind can restore captured tokens, protection and the stats exactly.
+@immutable
+class HistoryEntry {
+  const HistoryEntry(this.game, this.eaten, this.linesFormed, this.swings);
+  final GameState game;
+  final List<int> eaten;
+  final List<int> linesFormed;
+  final List<int> swings;
+}
 
 /// Everything the game screen renders. The rules engine state lives in
 /// [game]; the rest is UI-facing bookkeeping owned by the controller.
@@ -40,6 +54,9 @@ class GameUiState {
     this.timeoutDisqualified = false,
     this.paused = false,
     this.pausesUsed = 0,
+    this.hintText,
+    this.hintMove,
+    this.hintBusy = false,
   });
 
   factory GameUiState.initial(List<String> names) {
@@ -85,8 +102,8 @@ class GameUiState {
   final List<int> linesFormed;
   final List<int> swings;
 
-  /// Positions before every played move (used by rewind in a later stage).
-  final List<GameState> history;
+  /// Positions before every played move (rewind steps back through these).
+  final List<HistoryEntry> history;
 
   /// Timeouts per seat. The first auto-plays a move, the second disqualifies.
   final List<int> timeouts;
@@ -99,6 +116,13 @@ class GameUiState {
   /// Manual pause (max [GameController.maxPauses] per game).
   final bool paused;
   final int pausesUsed;
+
+  /// Hint on screen: the warning text, and (Hint 2) the best move to show.
+  final String? hintText;
+  final Move? hintMove;
+
+  /// A hint is being worked out (ads playing or the Hard search running).
+  final bool hintBusy;
 
   bool get isOver => game.isOver;
 
@@ -118,13 +142,16 @@ class GameUiState {
     List<int>? eaten,
     List<int>? linesFormed,
     List<int>? swings,
-    List<GameState>? history,
+    List<HistoryEntry>? history,
     List<int>? timeouts,
     int? timeoutSeat,
     int? timeoutSerial,
     bool? timeoutDisqualified,
     bool? paused,
     int? pausesUsed,
+    Object? hintText = _keep,
+    Object? hintMove = _keep,
+    bool? hintBusy,
   }) =>
       GameUiState(
         game: game ?? this.game,
@@ -153,6 +180,9 @@ class GameUiState {
         timeoutDisqualified: timeoutDisqualified ?? this.timeoutDisqualified,
         paused: paused ?? this.paused,
         pausesUsed: pausesUsed ?? this.pausesUsed,
+        hintText: identical(hintText, _keep) ? this.hintText : hintText as String?,
+        hintMove: identical(hintMove, _keep) ? this.hintMove : hintMove as Move?,
+        hintBusy: hintBusy ?? this.hintBusy,
       );
 }
 
@@ -189,6 +219,10 @@ class GameController extends Notifier<GameUiState> {
     _backgrounded = false;
     _adHold = false;
     state = GameUiState.initial(names ?? ref.read(setupProvider).names);
+    if (ref.read(setupProvider).mode == GameMode.vsAi) {
+      // line up the first rewarded ad so a hint never waits on a cold start
+      ref.read(adsServiceProvider).initialize().catchError((_) {});
+    }
     _newTurnClock();
     _maybePlayAi();
   }
@@ -285,7 +319,9 @@ class GameController extends Notifier<GameUiState> {
       eaten: move.hasCapture ? bump(s.eaten, mover, 1) : s.eaten,
       linesFormed: bump(s.linesFormed, mover, popCount(result.completedLines)),
       swings: swings,
-      history: [...s.history, s.game],
+      history: [...s.history, HistoryEntry(s.game, s.eaten, s.linesFormed, s.swings)],
+      hintText: null,
+      hintMove: null,
     );
   }
 
@@ -413,6 +449,138 @@ class GameController extends Notifier<GameUiState> {
     await Future<void>.delayed(const Duration(milliseconds: 450));
     if (!ref.mounted || gen != _generation || state.status != GameStatus.autoPlaying) return;
     _commit(move);
+  }
+
+  // ---------------------------------------------------------- hints & rewind
+
+  int? get _humanSeat {
+    final ai = ref.read(setupProvider).aiSeat;
+    return ai == null ? null : 1 - ai;
+  }
+
+  /// Hint and Rewind exist only against the AI, on the human's own turn.
+  bool get canAssist {
+    final s = state;
+    final human = _humanSeat;
+    return human != null &&
+        !s.game.isOver &&
+        !s.paused &&
+        !s.hintBusy &&
+        s.game.turn == human &&
+        (s.status == GameStatus.awaitingInput || s.status == GameStatus.capturePick);
+  }
+
+  /// Index in history to rewind to, or null when there is nothing to undo.
+  /// Steps back two turns: the AI's last turn and the human's turn before it.
+  int? _rewindTarget(GameUiState s) {
+    final ai = ref.read(setupProvider).aiSeat;
+    if (ai == null) return null;
+    final human = 1 - ai;
+    var i = s.history.length;
+    while (i > 0 && s.history[i - 1].game.turn == ai) {
+      i--;
+    }
+    final afterAi = i;
+    while (i > 0 && s.history[i - 1].game.turn == human) {
+      i--;
+    }
+    return i == afterAi ? null : i;
+  }
+
+  bool get canRewind =>
+      canAssist && state.status == GameStatus.awaitingInput && _rewindTarget(state) != null;
+
+  /// Plays [count] rewarded ads with the clock held; the caller grants the
+  /// assist only if the result says every ad was watched.
+  Future<AdChainResult> watchAds(
+    int count, {
+    void Function(int index)? onStart,
+    void Function(int done)? onProgress,
+  }) async {
+    _adHold = true;
+    _syncClock();
+    try {
+      return await ref
+          .read(adsServiceProvider)
+          .showChain(count, onStart: onStart, onProgress: onProgress);
+    } finally {
+      _adHold = false;
+      _syncClock();
+    }
+  }
+
+  void clearHint() => state = state.copyWith(hintText: null, hintMove: null);
+
+  /// Hint 1 (after 1 ad): a warning only.
+  void applyWarningHint() {
+    final human = _humanSeat;
+    if (human == null || !canAssist) return;
+    state = state.copyWith(
+      hintText: HintAnalyzer.warning(state.game, human).message,
+      hintMove: null,
+    );
+  }
+
+  /// Hint 2 (after 2 ads): the warning plus the best move, from the Hard
+  /// search, highlighted on the board.
+  Future<void> applyBestMoveHint() async {
+    final human = _humanSeat;
+    if (human == null || !canAssist) return;
+    final s = state;
+    final gen = _generation;
+    state = s.copyWith(hintBusy: true);
+    _adHold = true;
+    _syncClock();
+    Move? best;
+    try {
+      best = await ref
+          .read(aiServiceProvider)
+          .chooseMove(s.game, AiConfig.hard.withTime(1500), onlyStep: s.pendingStep);
+    } catch (_) {
+      best = null;
+    } finally {
+      _adHold = false;
+    }
+    if (!ref.mounted || gen != _generation) return;
+    final warning = HintAnalyzer.warning(s.game, human).message;
+    final how = best == null
+        ? ''
+        : best.isPlacement
+            ? ' Best move: place on the glowing point.'
+            : ' Best move: slide the marked token to the glowing point.';
+    final eat = best != null && best.hasCapture ? ' Then eat the marked token.' : '';
+    state = state.copyWith(hintBusy: false, hintText: '$warning$how$eat', hintMove: best);
+    _syncClock();
+  }
+
+  /// Rewind (after 3 ads): back two turns, with captured tokens, protection,
+  /// stats and the full countdown restored.
+  bool rewind() {
+    final s = state;
+    if (!canRewind) return false;
+    final i = _rewindTarget(s)!;
+    final e = s.history[i];
+    _generation++; // cancel anything in flight
+    final placing = e.game.handOf(e.game.turn) > 0;
+    state = s.copyWith(
+      game: e.game,
+      status: GameStatus.awaitingInput,
+      selected: null,
+      targets: placing ? e.game.emptyMask : 0,
+      pendingStep: null,
+      captureMask: 0,
+      lastResult: null,
+      phutasReady: false,
+      phutasLines: 0,
+      eaten: e.eaten,
+      linesFormed: e.linesFormed,
+      swings: e.swings,
+      history: s.history.sublist(0, i),
+      hintText: null,
+      hintMove: null,
+    );
+    _newTurnClock(); // the countdown starts again from full
+    return true;
   }
 
   // ------------------------------------------------------------------ AI
