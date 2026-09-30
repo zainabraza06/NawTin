@@ -43,7 +43,7 @@ abstract final class HintAnalyzer {
     }
     return const HintAdvice(
       HintKind.calm,
-      'No immediate danger. Build towards two lines at once so one move can threaten both.',
+      'No immediate danger. Build towards two lines at once.',
     );
   }
 

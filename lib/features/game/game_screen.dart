@@ -465,7 +465,6 @@ class _TopZone extends ConsumerWidget {
               child: TimerRing(
                 progress: clock.progress,
                 secondsLeft: clock.secondsLeft,
-                accent: tk.seatColor(g.turn),
               ),
             ),
             Semantics(
@@ -640,7 +639,7 @@ class _BoardZone extends StatelessWidget {
           ),
         ),
         SizedBox(
-          height: 58,
+          height: 68,
           child: Center(
             child: AnimatedSwitcher(
               duration: tk.medium,
@@ -649,8 +648,8 @@ class _BoardZone extends StatelessWidget {
                       key: const ValueKey('hint'),
                       onTap: ctl.clearHint,
                       child: Container(
-                        margin: const EdgeInsets.only(bottom: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        margin: const EdgeInsets.only(bottom: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
                         decoration: BoxDecoration(
                           borderRadius: BorderRadius.circular(tk.radiusM),
                           color: tk.lime.withValues(alpha: 0.12),
@@ -665,7 +664,7 @@ class _BoardZone extends StatelessWidget {
                                 ui.hintText!,
                                 maxLines: 3,
                                 overflow: TextOverflow.ellipsis,
-                                style: tk.body(NawTinTokens.scaleXS, color: tk.textPrimary),
+                                style: tk.body(NawTinTokens.scaleXS - 0.5, color: tk.textPrimary),
                               ),
                             ),
                             Icon(Icons.close_rounded, color: tk.textMuted, size: 18),

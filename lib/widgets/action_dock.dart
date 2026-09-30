@@ -56,7 +56,7 @@ class ActionDock extends StatelessWidget {
           ),
         ),
         SizedBox(width: tk.space1),
-        Expanded(flex: 4, child: phutas),
+        Expanded(flex: 5, child: phutas),
         SizedBox(width: tk.space1),
         Expanded(
           flex: 3,
@@ -161,7 +161,7 @@ class _DockPillState extends State<DockPill> with SingleTickerProviderStateMixin
             animation: _glow,
             builder: (context, child) => Container(
               constraints: const BoxConstraints(minHeight: 56),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(tk.radiusL),
                 gradient: on
@@ -201,11 +201,13 @@ class _DockPillState extends State<DockPill> with SingleTickerProviderStateMixin
         Icon(widget.icon, size: 22, color: on ? fg : dim),
         const SizedBox(width: 8),
         Flexible(
-          child: Text(
-            widget.label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: tk.heading(NawTinTokens.scaleS, color: on ? fg : dim),
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              widget.label,
+              maxLines: 1,
+              style: tk.heading(NawTinTokens.scaleS, color: on ? fg : dim),
+            ),
           ),
         ),
       ],
