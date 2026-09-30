@@ -17,6 +17,7 @@ class BoardView extends StatefulWidget {
     required this.targets,
     required this.captureMask,
     this.pending,
+    this.hint,
     required this.lastResult,
     required this.fxSerial,
     required this.phutasLines,
@@ -36,6 +37,9 @@ class BoardView extends StatefulWidget {
   /// A step waiting for its capture choice: drawn in place so the player
   /// sees the token they just placed / moved while choosing what to eat.
   final Move? pending;
+
+  /// Best move to highlight (Hint 2).
+  final Move? hint;
   final MoveResult? lastResult;
   final int fxSerial;
   final int phutasLines;
@@ -166,6 +170,7 @@ class _BoardViewState extends State<BoardView> with TickerProviderStateMixin {
                         phutasLines: widget.phutasLines,
                         phutasT: phutasT,
                         prefs: widget.prefs,
+                        hint: widget.hint,
                       ),
                     );
                   },

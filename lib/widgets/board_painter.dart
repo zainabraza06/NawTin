@@ -26,6 +26,7 @@ class BoardPainter extends CustomPainter {
     required this.phutasLines,
     required this.phutasT,
     required this.prefs,
+    this.hint,
     super.repaint,
   });
 
@@ -47,6 +48,9 @@ class BoardPainter extends CustomPainter {
   final int phutasLines;
   final double? phutasT;
   final MotionPrefs prefs;
+
+  /// Best move from the Hint 2 search, drawn in lime.
+  final Move? hint;
 
   late double _u; // grid unit in pixels
   late double _m; // margin
@@ -87,6 +91,7 @@ class BoardPainter extends CustomPainter {
     _paintLineHighlights(canvas);
     _paintPoints(canvas);
     _paintTokens(canvas);
+    _paintHint(canvas);
     _paintFx(canvas);
   }
 
@@ -232,6 +237,51 @@ class BoardPainter extends CustomPainter {
       final a = i * math.pi / 2 + math.pi / 4;
       final d = Offset(math.cos(a), math.sin(a));
       canvas.drawLine(c + d * (rr - _r * 0.18), c + d * (rr + _r * 0.28), paint);
+    }
+  }
+
+  // -------------------------------------------------------------------- hint
+
+  /// Hint 2: lime pulsing ring on the destination, a marked token and a
+  /// travelling arrow for slides, and a lime reticle on the token to eat.
+  void _paintHint(Canvas canvas) {
+    final h = hint;
+    if (h == null) return;
+    final wave = 0.5 + 0.5 * math.sin(pulse * math.pi * 4);
+    final to = _pos(h.to);
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = _u * 0.06
+      ..color = tk.lime.withValues(alpha: 0.6 + 0.4 * wave)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, _u * 0.03);
+    canvas.drawCircle(to, _u * (0.3 + 0.1 * wave), ring);
+    canvas.drawCircle(to, _u * 0.07, Paint()..color = tk.lime);
+
+    if (!h.isPlacement) {
+      final from = _pos(h.from);
+      canvas.drawCircle(from, _r * 1.35, ring);
+      // dashes flowing from the token to its destination
+      final dir = to - from;
+      const dashes = 6;
+      for (var i = 0; i < dashes; i++) {
+        final t = ((i / dashes) + pulse) % 1.0;
+        canvas.drawCircle(
+          from + dir * t,
+          _u * 0.05,
+          Paint()..color = tk.lime.withValues(alpha: 0.9 * math.sin(t * math.pi)),
+        );
+      }
+    }
+    if (h.hasCapture) {
+      final c = _pos(h.capture);
+      canvas.drawCircle(
+        c,
+        _r * (1.5 + 0.15 * wave),
+        Paint()
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(2, _r * 0.14)
+          ..color = tk.lime.withValues(alpha: 0.5 + 0.5 * wave),
+      );
     }
   }
 
