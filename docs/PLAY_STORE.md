@@ -14,6 +14,8 @@ here can be done for you from code.
 | Done | Launcher icon (adaptive + legacy), INTERNET and AD_ID permissions, app label `Naw Tin` | `assets/icon/`, manifest |
 | Done | Fonts and sounds are bundled, so the app works fully offline (ads need a connection) | `assets/` |
 
+Privacy policy draft: [PRIVACY_POLICY.md](PRIVACY_POLICY.md). Tester guide: [PLAYTEST.md](PLAYTEST.md).
+
 Test ads are on by default only when you ask for them:
 
 ```
