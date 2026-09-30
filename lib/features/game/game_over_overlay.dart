@@ -58,7 +58,8 @@ class _GameOverOverlayState extends State<GameOverOverlay>
     final r = ui.game.result!;
     final winner = r.winner;
     final color = winner == null ? tk.gold : tk.seatColor(winner);
-    final title = winner == null ? 'DRAW' : '${ui.names[winner].toUpperCase()} WINS';
+    final wname = winner == null ? '' : ui.names[winner];
+    final title = winner == null ? 'DRAW' : '${wname.toUpperCase()} ${wname == 'You' ? 'WIN' : 'WINS'}';
 
     return Stack(
       fit: StackFit.expand,

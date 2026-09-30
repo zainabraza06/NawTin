@@ -9,6 +9,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:nawtin/core/engine/engine.dart';
 import 'package:nawtin/features/game/game_controller.dart';
 import 'package:nawtin/features/game/game_screen.dart';
+import 'package:nawtin/features/setup/game_setup.dart';
 import 'package:nawtin/theme/app_theme.dart';
 import 'package:nawtin/theme/tokens.dart';
 import 'package:nawtin/widgets/board_view.dart';
@@ -49,6 +50,8 @@ void main() {
     await t.pump(const Duration(milliseconds: 500));
 
     final container = ProviderScope.containerOf(t.element(find.byType(GameScreen)));
+    container.read(setupProvider.notifier).setMode(GameMode.friend);
+    container.read(gameControllerProvider.notifier).newGame();
     Future<void> play(int p) async {
       container.read(gameControllerProvider.notifier).tapPoint(p);
       await t.pump(const Duration(milliseconds: 100));
@@ -77,6 +80,8 @@ void main() {
     await t.pumpWidget(app(shot, prefs: const MotionPrefs(reduceMotion: true)));
     await t.pump(const Duration(milliseconds: 600));
     final container = ProviderScope.containerOf(t.element(find.byType(GameScreen)));
+    container.read(setupProvider.notifier).setMode(GameMode.friend);
+    container.read(gameControllerProvider.notifier).newGame();
     await t.tapAt(pointOnScreen(t, 9));
     await t.pump(const Duration(milliseconds: 200));
     expect(container.read(gameControllerProvider).game.mask0, isNot(0));

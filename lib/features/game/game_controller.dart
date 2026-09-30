@@ -1,12 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/ai/ai.dart';
 import '../../core/engine/engine.dart';
+import '../../services/ai_provider.dart';
 import '../setup/game_setup.dart';
 
-/// Where the game screen is in its turn cycle. (`idle` and `aiThinking` join
-/// in later stages together with the AI.)
-enum GameStatus { awaitingInput, capturePick, animating, gameOver }
+/// Where the game screen is in its turn cycle.
+enum GameStatus { awaitingInput, capturePick, animating, aiThinking, gameOver }
 
 const Object _keep = Object();
 
@@ -127,18 +128,28 @@ class GameUiState {
 /// Two-player (pass-and-play) controller. Owns the state machine and the
 /// history stack; all rules come from the pure-Dart engine.
 class GameController extends Notifier<GameUiState> {
+  /// Bumped on every new game so a search that finishes late is discarded.
+  int _generation = 0;
+
+  /// Shortest time the AI "thinks", so its replies do not feel instant.
+  static const Duration _minThink = Duration(milliseconds: 550);
+
   @override
   GameUiState build() => GameUiState.initial(ref.read(setupProvider).names);
 
   /// Starts a fresh game with the names chosen on the setup screen.
   void newGame({List<String>? names}) {
+    _generation++;
     state = GameUiState.initial(names ?? ref.read(setupProvider).names);
+    _maybePlayAi();
   }
 
   /// Handles a tap on board point [p] according to the current status.
   void tapPoint(int p) {
     final s = state;
-    if (s.status == GameStatus.animating || s.status == GameStatus.gameOver) {
+    if (s.status == GameStatus.animating ||
+        s.status == GameStatus.aiThinking ||
+        s.status == GameStatus.gameOver) {
       return;
     }
     if (s.status == GameStatus.capturePick) {
@@ -218,7 +229,8 @@ class GameController extends Notifier<GameUiState> {
       fxSerial: s.fxSerial + 1,
       phutasSeat: mover,
       phutasLines: result.phutasLines,
-      phutasReady: result.canPhutas,
+      // the AI never presses PHUTAS; it is a button for the human seat
+      phutasReady: result.canPhutas && mover != ref.read(setupProvider).aiSeat,
       eaten: move.hasCapture ? bump(s.eaten, mover, 1) : s.eaten,
       linesFormed: bump(s.linesFormed, mover, popCount(result.completedLines)),
       swings: swings,
@@ -239,6 +251,48 @@ class GameController extends Notifier<GameUiState> {
       status: GameStatus.awaitingInput,
       targets: placing ? s.game.emptyMask : 0,
     );
+    _maybePlayAi();
+  }
+
+  // ------------------------------------------------------------------ AI
+
+  static AiConfig configFor(Difficulty d) => switch (d) {
+        Difficulty.easy => AiConfig.easy,
+        Difficulty.medium => AiConfig.medium,
+        Difficulty.hard => AiConfig.hard,
+      };
+
+  /// If it is the AI's turn, search on a background isolate and play the move.
+  Future<void> _maybePlayAi() async {
+    final setup = ref.read(setupProvider);
+    final aiSeat = setup.aiSeat;
+    final s = state;
+    if (aiSeat == null ||
+        s.game.isOver ||
+        s.game.turn != aiSeat ||
+        s.status != GameStatus.awaitingInput) {
+      return;
+    }
+    final gen = _generation;
+    state = s.copyWith(status: GameStatus.aiThinking, targets: 0);
+
+    final started = DateTime.now();
+    Move move;
+    try {
+      move = await ref
+          .read(aiServiceProvider)
+          .chooseMove(s.game, configFor(setup.difficulty));
+    } catch (_) {
+      // never leave the game stuck: fall back to the first legal move
+      move = Rules.legalMoves(s.game).first;
+    }
+    final spent = DateTime.now().difference(started);
+    if (spent < _minThink) await Future<void>.delayed(_minThink - spent);
+
+    if (!ref.mounted || gen != _generation || state.status != GameStatus.aiThinking) {
+      return;
+    }
+    _commit(move);
   }
 
   /// PHUTAS button: a warning only, no effect on the game.

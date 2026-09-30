@@ -170,11 +170,6 @@ class _ModeSetupScreenState extends ConsumerState<ModeSetupScreen> {
         ),
         const SizedBox(height: 10),
         Text(
-          'Preview build: the AI opponent arrives in the next update, so both sides are played by hand for now.',
-          style: tk.body(NawTinTokens.scaleXS + 1, color: tk.amber),
-        ),
-        const SizedBox(height: 10),
-        Text(
           setup.humanFirst
               ? 'You place two tokens on the opening turn. Naw Bot places the last two.'
               : 'Naw Bot opens with two tokens. You place the last two.',

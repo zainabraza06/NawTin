@@ -194,12 +194,12 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
                           padding: EdgeInsets.symmetric(horizontal: tk.space2),
                           child: Column(
                             children: [
-                              SizedBox(height: h * 0.14, child: _TopZone(ui: ui, onPause: _openPause, seconds: ref.watch(setupProvider).turnSeconds)),
+                              SizedBox(height: h * 0.14, child: _TopZone(ui: ui, onPause: _openPause, seconds: ref.watch(setupProvider).turnSeconds, seat: 1 - _bottomSeat(ref.watch(setupProvider)))),
                               SizedBox(
                                 height: h * 0.58,
                                 child: _BoardZone(ui: ui, ctl: ctl, tilt: _tilt, onTouch: _flatten, onImpact: _onImpact, prefs: prefs),
                               ),
-                              SizedBox(height: h * 0.28, child: _BottomZone(ui: ui, ctl: ctl)),
+                              SizedBox(height: h * 0.28, child: _BottomZone(ui: ui, ctl: ctl, seat: _bottomSeat(ref.watch(setupProvider)))),
                             ],
                           ),
                         );
@@ -275,11 +275,32 @@ class _SwipePainter extends CustomPainter {
   bool shouldRepaint(_SwipePainter old) => old.t != t;
 }
 
+/// Seat shown at the bottom of the screen: the human (vs AI) or seat 0.
+int _bottomSeat(GameSetup setup) {
+  final ai = setup.aiSeat;
+  return ai == null ? 0 : 1 - ai;
+}
+
+PlayerCard _cardFor(GameUiState ui, int seat) {
+  final g = ui.game;
+  return PlayerCard(
+    seat: seat,
+    name: ui.names[seat],
+    toPlace: g.handOf(seat),
+    onBoard: popCount(g.maskOf(seat)),
+    eaten: ui.eaten[seat],
+    active: g.turn == seat && !g.isOver,
+  );
+}
+
 // ------------------------------------------------------------------ zones
 
 class _TopZone extends StatelessWidget {
-  const _TopZone({required this.ui, required this.onPause, required this.seconds});
+  const _TopZone({required this.ui, required this.onPause, required this.seconds, required this.seat});
   final GameUiState ui;
+
+  /// The opponent's seat (shown at the top).
+  final int seat;
   final VoidCallback onPause;
 
   /// Per-turn clock (Stage 5 makes the ring count down).
@@ -297,14 +318,7 @@ class _TopZone extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Expanded(
-              child: PlayerCard(
-                seat: 1,
-                name: ui.names[1],
-                toPlace: g.hand1,
-                onBoard: popCount(g.mask1),
-                eaten: ui.eaten[1],
-                active: g.turn == 1 && !g.isOver,
-              ),
+              child: _cardFor(ui, seat),
             ),
             SizedBox(width: tk.space1),
             // Stage 5 feeds the ring with the live countdown; two-player is 2:00
@@ -347,6 +361,8 @@ class _BoardZone extends StatelessWidget {
         return 'Game over';
       case GameStatus.capturePick:
         return 'Machyas! Tap a glowing opponent token to eat it.';
+      case GameStatus.aiThinking:
+        return '$name is thinking...';
       case GameStatus.animating:
       case GameStatus.awaitingInput:
         if (g.handOf(g.turn) > 0) {
@@ -363,10 +379,16 @@ class _BoardZone extends StatelessWidget {
   Widget build(BuildContext context) {
     final tk = context.tokens;
     final g = ui.game;
-    final chip = ui.status == GameStatus.capturePick
-        ? 'EAT A TOKEN'
-        : (g.phase == GamePhase.placement ? 'PLACEMENT' : 'MOVEMENT');
-    final chipColor = ui.status == GameStatus.capturePick ? tk.danger : tk.violet;
+    final chip = switch (ui.status) {
+      GameStatus.capturePick => 'EAT A TOKEN',
+      GameStatus.aiThinking => 'THINKING',
+      _ => g.phase == GamePhase.placement ? 'PLACEMENT' : 'MOVEMENT',
+    };
+    final chipColor = switch (ui.status) {
+      GameStatus.capturePick => tk.danger,
+      GameStatus.aiThinking => tk.aqua,
+      _ => tk.violet,
+    };
 
     // a slow camera-style zoom towards the last move when the game ends
     final last = ui.lastResult?.move.to;
@@ -470,14 +492,16 @@ class _BoardZone extends StatelessWidget {
 }
 
 class _BottomZone extends StatelessWidget {
-  const _BottomZone({required this.ui, required this.ctl});
+  const _BottomZone({required this.ui, required this.ctl, required this.seat});
   final GameUiState ui;
   final GameController ctl;
+
+  /// The seat shown at the bottom (the human player).
+  final int seat;
 
   @override
   Widget build(BuildContext context) {
     final tk = context.tokens;
-    final g = ui.game;
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(
@@ -485,14 +509,7 @@ class _BottomZone extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            PlayerCard(
-              seat: 0,
-              name: ui.names[0],
-              toPlace: g.hand0,
-              onBoard: popCount(g.mask0),
-              eaten: ui.eaten[0],
-              active: g.turn == 0 && !g.isOver,
-            ),
+            _cardFor(ui, seat),
             SizedBox(height: tk.space2),
             ActionDock(
               phutasReady: ui.phutasReady && ui.status != GameStatus.gameOver,

@@ -2,10 +2,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nawtin/core/engine/engine.dart';
 import 'package:nawtin/features/game/game_controller.dart';
+import 'package:nawtin/features/setup/game_setup.dart';
 
 ProviderContainer make() {
   final c = ProviderContainer();
   addTearDown(c.dispose);
+  c.read(setupProvider.notifier).setMode(GameMode.friend);
+  c.read(gameControllerProvider.notifier).newGame();
   return c;
 }
 
