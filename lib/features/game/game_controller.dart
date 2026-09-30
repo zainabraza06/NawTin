@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/ai/ai.dart';
@@ -612,11 +613,15 @@ class GameController extends Notifier<GameUiState> {
 
   // ------------------------------------------------------------------ AI
 
-  static AiConfig configFor(Difficulty d) => switch (d) {
-        Difficulty.easy => AiConfig.easy,
-        Difficulty.medium => AiConfig.medium,
-        Difficulty.hard => AiConfig.hard,
-      };
+  static AiConfig configFor(Difficulty d) {
+    final base = switch (d) {
+      Difficulty.easy => AiConfig.easy,
+      Difficulty.medium => AiConfig.medium,
+      Difficulty.hard => AiConfig.hard,
+    };
+    // no background thread on the web: keep each think short so the UI stays live
+    return kIsWeb ? base.withTime(math.min(base.timeMs, 700)) : base;
+  }
 
   /// If it is the AI's turn, search on a background isolate and play the move.
   Future<void> _maybePlayAi() async {

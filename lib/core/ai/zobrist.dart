@@ -9,7 +9,9 @@ import '../engine/engine.dart';
 abstract final class Zobrist {
   static final math.Random _rnd = math.Random(0x5EED5EED);
 
-  static int _key() => (_rnd.nextInt(1 << 32) << 32) | _rnd.nextInt(1 << 32);
+  // Built with arithmetic, not shifts: on the web ints are JS numbers and
+  // `x << 32` would silently wrap, turning every key into 0.
+  static int _key() => _rnd.nextInt(0x200000) * 0x80000000 + _rnd.nextInt(0x7FFFFFFF);
 
   static final List<int> _seat0 = List.generate(Board.pointCount, (_) => _key());
   static final List<int> _seat1 = List.generate(Board.pointCount, (_) => _key());
