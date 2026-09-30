@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../app_router.dart';
 import '../../core/engine/engine.dart';
 import '../../services/settings.dart';
+import '../../services/turn_clock.dart';
 import '../setup/game_setup.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/action_dock.dart';
@@ -19,6 +20,7 @@ import '../../widgets/player_card.dart';
 import '../../widgets/timer_ring.dart';
 import 'game_controller.dart';
 import 'game_over_overlay.dart';
+import 'pause_overlay.dart';
 
 /// Portrait game screen: opponent zone (~14%), board zone (~58%) and the
 /// player zone with the action dock (~28%). Two-player mode for now.
@@ -32,7 +34,8 @@ class GameScreen extends ConsumerStatefulWidget {
   ConsumerState<GameScreen> createState() => _GameScreenState();
 }
 
-class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStateMixin {
+class _GameScreenState extends ConsumerState<GameScreen>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   // 1 = board tilted ~8 degrees in perspective, 0 = flat (while interacting)
   late final AnimationController _tilt = AnimationController(
     vsync: this,
@@ -54,7 +57,22 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
   Color _flashColor = Colors.white;
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Against the AI the clock waits while the app is in the background; in
+  /// two-player it keeps running (otherwise it could be abused).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    final away = state != AppLifecycleState.resumed;
+    ref.read(gameControllerProvider.notifier).setBackgrounded(away);
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _retilt?.cancel();
     _tilt.dispose();
     _shake.dispose();
@@ -102,6 +120,45 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
     if (next.game.turn != prev.game.turn && !prefs.reduceMotion) {
       _swipe.forward(from: 0);
     }
+    if (next.timeoutSerial != prev.timeoutSerial) _announceTimeout(next);
+  }
+
+  void _announceTimeout(GameUiState ui) {
+    final tk = context.tokens;
+    final name = ui.names[ui.timeoutSeat];
+    final you = name == 'You';
+    final String msg;
+    if (ui.timeoutDisqualified) {
+      msg = you
+          ? 'Out of time again. You are disqualified.'
+          : '$name ran out of time twice and is disqualified.';
+    } else {
+      msg = you
+          ? 'Time is up! A move was played for you. One more timeout and you lose.'
+          : '$name ran out of time. A move was played for them. One more timeout and they lose.';
+    }
+    HapticFeedback.heavyImpact();
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: tk.amber,
+        duration: const Duration(seconds: 4),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(tk.radiusM)),
+        content: Text(msg, style: tk.heading(NawTinTokens.scaleXS + 1, color: tk.ink)),
+      ));
+  }
+
+  int _lastSecond = -1;
+
+  /// Warning at 30s, then a strong haptic tick every second in the last 10s.
+  void _onClock(ClockState? prev, ClockState next) {
+    if (!next.running) return;
+    final sec = next.secondsLeft;
+    if (sec == _lastSecond) return;
+    _lastSecond = sec;
+    if (sec == 30) HapticFeedback.mediumImpact();
+    if (sec <= 10 && sec > 0) HapticFeedback.heavyImpact();
   }
 
   void _onImpact(MoveResult r) {
@@ -112,57 +169,29 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
   void _goHome() =>
       Navigator.of(context).popUntil((r) => r.settings.name == Routes.home || r.isFirst);
 
-  void _openPause() {
+  void _pressPause() {
+    final ctl = ref.read(gameControllerProvider.notifier);
+    if (ctl.pause()) return;
+    final ui = ref.read(gameControllerProvider);
     final tk = context.tokens;
-    showModalBottomSheet<void>(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.all(tk.space2),
-        child: GlassPanel(
-          padding: EdgeInsets.all(tk.space3),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text('Paused', style: tk.heading(NawTinTokens.scaleM)),
-              const SizedBox(height: 4),
-              Text('Take a breath. The board will wait.', style: tk.body(NawTinTokens.scaleS)),
-              SizedBox(height: tk.space2),
-              FilledButton(
-                style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(52), backgroundColor: tk.violet),
-                onPressed: () => Navigator.pop(ctx),
-                child: Text('Resume', style: tk.heading(NawTinTokens.scaleS)),
-              ),
-              const SizedBox(height: 8),
-              OutlinedButton(
-                style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ref.read(gameControllerProvider.notifier).newGame();
-                },
-                child: Text('Restart game', style: tk.heading(NawTinTokens.scaleS, color: tk.textPrimary)),
-              ),
-              const SizedBox(height: 8),
-              TextButton(
-                style: TextButton.styleFrom(minimumSize: const Size.fromHeight(52)),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  _goHome();
-                },
-                child: Text('Quit to home', style: tk.heading(NawTinTokens.scaleS, color: tk.textMuted)),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    final msg = ui.pausesUsed >= GameController.maxPauses
+        ? 'No pauses left in this game.'
+        : 'You can pause once it is your turn to move.';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 2),
+        backgroundColor: tk.bgBottom,
+        content: Text(msg, style: tk.body(NawTinTokens.scaleXS + 1, color: tk.textPrimary)),
+      ));
   }
 
   @override
   Widget build(BuildContext context) {
     ref.watch(settingsProvider); // rebuild when motion prefs change
     ref.listen<GameUiState>(gameControllerProvider, _onState);
+    ref.listen<ClockState>(clockProvider, _onClock);
     final ui = ref.watch(gameControllerProvider);
     final ctl = ref.read(gameControllerProvider.notifier);
     final tk = context.tokens;
@@ -194,7 +223,7 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
                           padding: EdgeInsets.symmetric(horizontal: tk.space2),
                           child: Column(
                             children: [
-                              SizedBox(height: h * 0.14, child: _TopZone(ui: ui, onPause: _openPause, seconds: ref.watch(setupProvider).turnSeconds, seat: 1 - _bottomSeat(ref.watch(setupProvider)))),
+                              SizedBox(height: h * 0.14, child: _TopZone(ui: ui, onPause: _pressPause, seat: 1 - _bottomSeat(ref.watch(setupProvider)))),
                               SizedBox(
                                 height: h * 0.58,
                                 child: _BoardZone(ui: ui, ctl: ctl, tilt: _tilt, onTouch: _flatten, onImpact: _onImpact, prefs: prefs),
@@ -227,6 +256,16 @@ class _GameScreenState extends ConsumerState<GameScreen> with TickerProviderStat
                   ),
                 ),
               ),
+              if (ui.paused)
+                PausedOverlay(
+                  pausesLeft: GameController.maxPauses - ui.pausesUsed,
+                  onResume: ctl.resume,
+                  onRestart: () {
+                    ctl.resume();
+                    ctl.newGame();
+                  },
+                  onQuit: _goHome,
+                ),
               if (ui.status == GameStatus.gameOver)
                 GameOverOverlay(
                   ui: ui,
@@ -295,21 +334,20 @@ PlayerCard _cardFor(GameUiState ui, int seat) {
 
 // ------------------------------------------------------------------ zones
 
-class _TopZone extends StatelessWidget {
-  const _TopZone({required this.ui, required this.onPause, required this.seconds, required this.seat});
+class _TopZone extends ConsumerWidget {
+  const _TopZone({required this.ui, required this.onPause, required this.seat});
   final GameUiState ui;
+  final VoidCallback onPause;
 
   /// The opponent's seat (shown at the top).
   final int seat;
-  final VoidCallback onPause;
-
-  /// Per-turn clock (Stage 5 makes the ring count down).
-  final int seconds;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final tk = context.tokens;
     final g = ui.game;
+    final clock = ref.watch(clockProvider);
+    final pausesLeft = GameController.maxPauses - ui.pausesUsed;
     return FittedBox(
       fit: BoxFit.scaleDown,
       child: SizedBox(
@@ -317,17 +355,38 @@ class _TopZone extends StatelessWidget {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Expanded(
-              child: _cardFor(ui, seat),
-            ),
+            Expanded(child: _cardFor(ui, seat)),
             SizedBox(width: tk.space1),
-            // Stage 5 feeds the ring with the live countdown; two-player is 2:00
-            TimerRing(progress: 1, secondsLeft: seconds, accent: tk.seatColor(g.turn)),
-            IconButton(
-              tooltip: 'Pause',
-              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-              onPressed: onPause,
-              icon: Icon(Icons.pause_rounded, color: tk.textMuted),
+            Opacity(
+              opacity: clock.running || g.isOver ? 1 : 0.6,
+              child: TimerRing(
+                progress: clock.progress,
+                secondsLeft: clock.secondsLeft,
+                accent: tk.seatColor(g.turn),
+              ),
+            ),
+            Semantics(
+              button: true,
+              label: 'Pause, $pausesLeft left',
+              child: InkResponse(
+                onTap: onPause,
+                radius: 28,
+                child: SizedBox(
+                  width: 48,
+                  height: 48,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Icon(Icons.pause_rounded, color: pausesLeft > 0 ? tk.textMuted : tk.textMuted.withValues(alpha: 0.35)),
+                      Positioned(
+                        right: 4,
+                        top: 6,
+                        child: Text('$pausesLeft', style: tk.digits(NawTinTokens.scaleXS - 2, color: tk.textMuted)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             ),
           ],
         ),
@@ -363,6 +422,8 @@ class _BoardZone extends StatelessWidget {
         return 'Machyas! Tap a glowing opponent token to eat it.';
       case GameStatus.aiThinking:
         return '$name is thinking...';
+      case GameStatus.autoPlaying:
+        return 'Time is up. Playing a move for $name...';
       case GameStatus.animating:
       case GameStatus.awaitingInput:
         if (g.handOf(g.turn) > 0) {
@@ -382,11 +443,13 @@ class _BoardZone extends StatelessWidget {
     final chip = switch (ui.status) {
       GameStatus.capturePick => 'EAT A TOKEN',
       GameStatus.aiThinking => 'THINKING',
+      GameStatus.autoPlaying => 'AUTO-PLAY',
       _ => g.phase == GamePhase.placement ? 'PLACEMENT' : 'MOVEMENT',
     };
     final chipColor = switch (ui.status) {
       GameStatus.capturePick => tk.danger,
       GameStatus.aiThinking => tk.aqua,
+      GameStatus.autoPlaying => tk.amber,
       _ => tk.violet,
     };
 
