@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/tokens.dart';
+import '../services/haptics.dart';
 
 enum NawButtonStyle { primary, secondary, ghost }
 
@@ -51,7 +51,7 @@ class _NawButtonState extends State<NawButton> {
         onTapUp: enabled
             ? (_) {
                 setState(() => _down = false);
-                HapticFeedback.lightImpact();
+                Haptics.light();
                 widget.onPressed!();
               }
             : null,

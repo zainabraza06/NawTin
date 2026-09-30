@@ -10,6 +10,7 @@ import '../../widgets/wordmark.dart';
 import '../setup/game_setup.dart';
 import 'floating_tokens.dart';
 import 'settings_sheet.dart';
+import 'stats_sheet.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -17,7 +18,8 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tk = context.tokens;
-    final prefs = ref.watch(settingsProvider).motion;
+    final settings = ref.watch(settingsProvider);
+    final prefs = settings.motion;
 
     void open(GameMode m) {
       ref.read(setupProvider.notifier).setMode(m);
@@ -39,14 +41,31 @@ class HomeScreen extends ConsumerWidget {
                     padding: EdgeInsets.symmetric(horizontal: tk.space3),
                     child: Column(
                       children: [
-                        Align(
-                          alignment: Alignment.centerRight,
-                          child: IconButton(
-                            tooltip: 'Settings',
-                            constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
-                            onPressed: () => showSettingsSheet(context),
-                            icon: Icon(Icons.tune_rounded, color: tk.textPrimary),
-                          ),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            IconButton(
+                              tooltip: settings.soundOn ? 'Mute sound' : 'Unmute sound',
+                              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                              onPressed: () => ref.read(settingsProvider.notifier).setSound(!settings.soundOn),
+                              icon: Icon(
+                                settings.soundOn ? Icons.volume_up_rounded : Icons.volume_off_rounded,
+                                color: tk.textPrimary,
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: 'Your stats',
+                              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                              onPressed: () => showStatsSheet(context),
+                              icon: Icon(Icons.bar_chart_rounded, color: tk.textPrimary),
+                            ),
+                            IconButton(
+                              tooltip: 'Settings',
+                              constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                              onPressed: () => showSettingsSheet(context),
+                              icon: Icon(Icons.tune_rounded, color: tk.textPrimary),
+                            ),
+                          ],
                         ),
                         const Spacer(flex: 2),
                         const Wordmark(size: 44),

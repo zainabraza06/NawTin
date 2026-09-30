@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.dart';
@@ -12,6 +11,7 @@ import '../../widgets/sliding_segments.dart';
 import '../../widgets/token_painter.dart';
 import '../game/game_controller.dart';
 import 'game_setup.dart';
+import '../../services/haptics.dart';
 
 /// Mode setup: difficulty + who goes first (vs AI) or player names (friend).
 class ModeSetupScreen extends ConsumerStatefulWidget {
@@ -46,7 +46,7 @@ class _ModeSetupScreenState extends ConsumerState<ModeSetupScreen> {
     if (setup.mode == GameMode.friend) {
       final a = _a.text.trim(), b = _b.text.trim();
       if (a.isEmpty || b.isEmpty) {
-        HapticFeedback.mediumImpact();
+        Haptics.medium();
         setState(() => _showError = true);
         return;
       }

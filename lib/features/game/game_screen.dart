@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../app_router.dart';
@@ -23,6 +22,7 @@ import 'ad_gate_sheet.dart';
 import 'game_controller.dart';
 import 'game_over_overlay.dart';
 import 'pause_overlay.dart';
+import '../../services/haptics.dart';
 
 /// Portrait game screen: opponent zone (~14%), board zone (~58%) and the
 /// player zone with the action dock (~28%). Two-player mode for now.
@@ -109,7 +109,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
       if (swing != null && !prefs.reduceMotion) {
         _flashColor = swing.call == Call.treghi ? tk.goldGlow : tk.violet;
         _flash.forward(from: 0);
-        swing.call == Call.treghi ? HapticFeedback.heavyImpact() : HapticFeedback.mediumImpact();
+        swing.call == Call.treghi ? Haptics.heavy() : Haptics.medium();
       }
     }
     if (next.phutasSerial != prev.phutasSerial) {
@@ -117,7 +117,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
         _banners = const [phutasBanner];
         _bannerSerial++;
       });
-      HapticFeedback.selectionClick();
+      Haptics.tick();
     }
     if (next.game.turn != prev.game.turn && !prefs.reduceMotion) {
       _swipe.forward(from: 0);
@@ -139,7 +139,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
           ? 'Time is up! A move was played for you. One more timeout and you lose.'
           : '$name ran out of time. A move was played for them. One more timeout and they lose.';
     }
-    HapticFeedback.heavyImpact();
+    Haptics.heavy();
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
@@ -159,12 +159,12 @@ class _GameScreenState extends ConsumerState<GameScreen>
     final sec = next.secondsLeft;
     if (sec == _lastSecond) return;
     _lastSecond = sec;
-    if (sec == 30) HapticFeedback.mediumImpact();
-    if (sec <= 10 && sec > 0) HapticFeedback.heavyImpact();
+    if (sec == 30) Haptics.medium();
+    if (sec <= 10 && sec > 0) Haptics.heavy();
   }
 
   void _onImpact(MoveResult r) {
-    HapticFeedback.heavyImpact();
+    Haptics.heavy();
     if (!prefs.reduceMotion) _shake.forward(from: 0);
   }
 

@@ -1,5 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../services/prefs_store.dart';
 
 enum GameMode { vsAi, friend }
 
@@ -62,14 +66,58 @@ class GameSetup {
       );
 }
 
+/// Remembers the last difficulty, who went first and the friend names.
 class SetupController extends Notifier<GameSetup> {
-  @override
-  GameSetup build() => const GameSetup();
+  static const _key = 'setup.v1';
 
+  @override
+  GameSetup build() {
+    final raw = ref.read(prefsStoreProvider).read(_key);
+    if (raw == null) return const GameSetup();
+    try {
+      final j = jsonDecode(raw);
+      if (j is! Map) return const GameSetup();
+      final names = j['names'];
+      return GameSetup(
+        difficulty: Difficulty.values.firstWhere(
+          (d) => d.name == j['difficulty'],
+          orElse: () => Difficulty.medium,
+        ),
+        humanFirst: j['humanFirst'] is bool ? j['humanFirst'] as bool : true,
+        friendNames: names is List && names.length == 2 && names.every((n) => n is String && n.trim().isNotEmpty)
+            ? [names[0] as String, names[1] as String]
+            : const ['Player 1', 'Player 2'],
+      );
+    } catch (_) {
+      return const GameSetup();
+    }
+  }
+
+  void _save() {
+    final s = state;
+    ref.read(prefsStoreProvider).write(
+          _key,
+          jsonEncode({'difficulty': s.difficulty.name, 'humanFirst': s.humanFirst, 'names': s.friendNames}),
+        );
+  }
+
+  // the mode is chosen on the home screen each time, so it is not saved
   void setMode(GameMode m) => state = state.copyWith(mode: m);
-  void setDifficulty(Difficulty d) => state = state.copyWith(difficulty: d);
-  void setHumanFirst(bool v) => state = state.copyWith(humanFirst: v);
-  void setFriendNames(String a, String b) => state = state.copyWith(friendNames: [a, b]);
+
+  void setDifficulty(Difficulty d) {
+    state = state.copyWith(difficulty: d);
+    _save();
+  }
+
+  void setHumanFirst(bool v) {
+    state = state.copyWith(humanFirst: v);
+    _save();
+  }
+
+  void setFriendNames(String a, String b) {
+    state = state.copyWith(friendNames: [a, b]);
+    _save();
+  }
 }
 
 final setupProvider = NotifierProvider<SetupController, GameSetup>(SetupController.new);

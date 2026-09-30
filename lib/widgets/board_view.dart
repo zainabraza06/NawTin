@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../core/engine/engine.dart';
 import '../theme/tokens.dart';
 import 'board_fx.dart';
 import 'board_painter.dart';
+import '../services/haptics.dart';
 
 /// The interactive board. Always square, wrapped in a RepaintBoundary, and
 /// driven by three controllers: a looping pulse, the per-move effect timeline
@@ -104,7 +104,7 @@ class _BoardViewState extends State<BoardView> with TickerProviderStateMixin {
           ? const Duration(milliseconds: 250)
           : tl.duration;
       _fxCtrl.forward(from: 0);
-      HapticFeedback.lightImpact();
+      Haptics.light();
     }
     if (widget.phutasSerial != old.phutasSerial && widget.phutasSerial > 0) {
       _phutasCtrl.forward(from: 0);

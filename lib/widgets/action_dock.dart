@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/tokens.dart';
+import '../services/haptics.dart';
 
 /// The bottom dock: Hint (left), PHUTAS (centre) and Rewind (right).
 /// In two-player mode Hint and Rewind are hidden and PHUTAS stays centred.
@@ -149,7 +149,7 @@ class _DockPillState extends State<DockPill> with SingleTickerProviderStateMixin
         onTapUp: on
             ? (_) {
                 setState(() => _down = false);
-                HapticFeedback.lightImpact();
+                Haptics.light();
                 widget.onTap();
               }
             : null,

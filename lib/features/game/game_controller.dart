@@ -7,6 +7,7 @@ import '../../core/ai/hint_analyzer.dart';
 import '../../services/ads/ads_provider.dart';
 import '../../services/ads/ads_service.dart';
 import '../../services/ai_provider.dart';
+import '../../services/stats.dart';
 import '../../services/turn_clock.dart';
 import '../setup/game_setup.dart';
 
@@ -200,6 +201,7 @@ class GameController extends Notifier<GameUiState> {
 
   bool _backgrounded = false;
   bool _adHold = false;
+  bool _recorded = false;
 
   @override
   GameUiState build() {
@@ -218,6 +220,7 @@ class GameController extends Notifier<GameUiState> {
     _generation++;
     _backgrounded = false;
     _adHold = false;
+    _recorded = false;
     state = GameUiState.initial(names ?? ref.read(setupProvider).names);
     if (ref.read(setupProvider).mode == GameMode.vsAi) {
       // line up the first rewarded ad so a hint never waits on a cold start
@@ -331,6 +334,7 @@ class GameController extends Notifier<GameUiState> {
     if (s.status != GameStatus.animating || serial != s.fxSerial) return;
     if (s.game.isOver) {
       state = s.copyWith(status: GameStatus.gameOver, targets: 0);
+      _recordOnce();
       return;
     }
     final placing = s.game.handOf(s.game.turn) > 0;
@@ -340,6 +344,28 @@ class GameController extends Notifier<GameUiState> {
     );
     _newTurnClock();
     _maybePlayAi();
+  }
+
+  /// Adds the finished game to the lifetime statistics (exactly once).
+  void _recordOnce() {
+    if (_recorded) return;
+    final s = state;
+    final result = s.game.result;
+    if (result == null) return;
+    _recorded = true;
+    final setup = ref.read(setupProvider);
+    final human = setup.aiSeat == null ? 0 : 1 - setup.aiSeat!;
+    final both = setup.mode == GameMode.friend;
+    int mine(List<int> l) => both ? l[0] + l[1] : l[human];
+    ref.read(statsProvider.notifier).record(GameRecord(
+          mode: setup.mode,
+          difficulty: setup.difficulty,
+          humanWon: result.winner == human,
+          draw: result.isDraw,
+          tokensEaten: mine(s.eaten),
+          linesFormed: mine(s.linesFormed),
+          swings: mine(s.swings),
+        ));
   }
 
   // --------------------------------------------------------------- clock
@@ -421,6 +447,7 @@ class GameController extends Notifier<GameUiState> {
         timeoutSerial: s.timeoutSerial + 1,
         timeoutDisqualified: true,
       );
+      _recordOnce();
       return;
     }
 

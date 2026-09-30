@@ -48,6 +48,12 @@ class _SettingsSheet extends ConsumerWidget {
                   onChanged: c.setSound,
                 ),
                 _Toggle(
+                  title: 'Vibration',
+                  subtitle: 'Haptic taps for moves, calls and the clock',
+                  value: s.hapticsOn,
+                  onChanged: c.setHaptics,
+                ),
+                _Toggle(
                   title: 'Reduce motion',
                   subtitle: 'Calmer animations, no board tilt or shake',
                   value: s.reduceMotion,

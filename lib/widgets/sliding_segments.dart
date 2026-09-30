@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import '../theme/tokens.dart';
+import '../services/haptics.dart';
 
 /// Segmented selector whose thumb slides between options.
 class SlidingSegments extends StatelessWidget {
@@ -65,7 +65,7 @@ class SlidingSegments extends StatelessWidget {
                         child: GestureDetector(
                           behavior: HitTestBehavior.opaque,
                           onTap: () {
-                            if (i != selected) HapticFeedback.selectionClick();
+                            if (i != selected) Haptics.tick();
                             onChanged(i);
                           },
                           child: Center(
