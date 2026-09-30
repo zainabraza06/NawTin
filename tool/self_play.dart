@@ -1,15 +1,20 @@
 // Self-play harness. Run from the project root:
-//   dart run tool/self_play.dart [games] [hardMs] [easyMs]
+//   dart run tool/self_play.dart [games] [hardMs] [easyMs] [agreed|symmetric] [hh]
 //   e.g. dart run tool/self_play.dart 10 400 100
 // ignore_for_file: avoid_print
 // Prints Hard-vs-Easy, Hard-vs-Hard (seat fairness) and Medium-vs-Easy.
 import 'package:nawtin/core/ai/ai.dart';
 import 'package:nawtin/core/ai/self_play.dart';
+import 'package:nawtin/core/engine/engine.dart';
 
 void main(List<String> args) {
   final games = args.isNotEmpty ? int.parse(args[0]) : 10;
   final hardMs = args.length > 1 ? int.parse(args[1]) : 400;
   final easyMs = args.length > 2 ? int.parse(args[2]) : 100;
+  if (args.length > 3 && args[3] == 'symmetric') {
+    Rules.placementRule = PlacementRule.symmetricOpening;
+  }
+  final onlyHard = args.length > 4;
 
   void run(String title, AiConfig a, AiConfig b, {int n = 0, bool mirror = true}) {
     final sw = Stopwatch()..start();
@@ -29,10 +34,12 @@ void main(List<String> args) {
   final medium = AiConfig.medium.withTime(hardMs);
   final easy = AiConfig.easy.withTime(easyMs);
 
-  print('== Hard vs Easy ==');
-  run('Hard vs Easy', hard, easy);
-  print('== Medium vs Easy ==');
-  run('Medium vs Easy', medium, easy);
+  if (!onlyHard) {
+    print('== Hard vs Easy ==');
+    run('Hard vs Easy', hard, easy);
+    print('== Medium vs Easy ==');
+    run('Medium vs Easy', medium, easy);
+  }
   print('== Hard vs Hard (seat fairness, opening/closing double) ==');
   run('Hard vs Hard', hard, hard, mirror: false);
 }

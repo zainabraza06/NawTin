@@ -31,6 +31,7 @@ GameState play(GameState s, List<Move> moves) {
 }
 
 void main() {
+  placementRuleTests();
   group('lines and protection', () {
     test('linesCompletedAt sees only lines through the point', () {
       final top = maskOf([0, 1, 2]);
@@ -496,6 +497,65 @@ void main() {
       }
       expect(sawMovement, greaterThan(0));
       expect(finished, greaterThan(0));
+    });
+  });
+}
+
+void placementRuleTests() {
+  group('PlacementRule.symmetricOpening', () {
+    setUp(() => Rules.placementRule = PlacementRule.symmetricOpening);
+    tearDown(() => Rules.placementRule = PlacementRule.openingAndClosingDouble);
+
+    test('both seats open with two tokens, then strict alternation', () {
+      var s = GameState.initial();
+      s = play(s, [const Move.place(0), const Move.place(4)]);
+      expect(s.turn, 1);
+      expect(s.placesLeft, 2);
+      s = play(s, [const Move.place(9)]);
+      expect(s.turn, 1, reason: 'seat 1 places a second opening token');
+      s = play(s, [const Move.place(11)]);
+      expect(s.turn, 0);
+      expect(s.placesLeft, 1);
+      s = play(s, [const Move.place(13)]);
+      expect(s.turn, 1);
+      expect(s.placesLeft, 1);
+    });
+
+    test('there is no closing double: seat 1 places last, seat 0 moves first',
+        () {
+      const a = [0, 2, 4, 6, 9, 11, 13, 15, 17];
+      const b = [1, 3, 5, 7, 8, 10, 12, 14, 21];
+      var s = GameState.initial();
+      s = play(s, [Move.place(a[0]), Move.place(a[1])]);
+      s = play(s, [Move.place(b[0]), Move.place(b[1])]);
+      for (var i = 2; i < 9; i++) {
+        s = play(s, [Move.place(a[i])]);
+        expect(s.turn, 1);
+        s = play(s, [Move.place(b[i])]);
+      }
+      expect(s.phase, GamePhase.movement);
+      expect(s.turn, 0);
+      expect(s.totalTokens(0), 9);
+      expect(s.totalTokens(1), 9);
+    });
+
+    test('random play-outs keep the invariants', () {
+      final rnd = Random(77);
+      for (var g = 0; g < 60; g++) {
+        var s = GameState.initial();
+        var plies = 0;
+        while (!s.isOver && plies < 400) {
+          final moves = Rules.legalMoves(s);
+          expect(moves, isNotEmpty);
+          s = Rules.apply(s, moves[rnd.nextInt(moves.length)]);
+          plies++;
+          expect(s.totalTokens(0), inInclusiveRange(0, 9));
+          expect(s.totalTokens(1), inInclusiveRange(0, 9));
+          if (s.phase == GamePhase.placement) {
+            expect(s.handOf(s.turn), greaterThan(0));
+          }
+        }
+      }
     });
   });
 }

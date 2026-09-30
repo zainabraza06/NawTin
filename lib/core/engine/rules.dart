@@ -3,9 +3,26 @@ import 'board.dart';
 import 'game_state.dart';
 import 'move.dart';
 
+/// Order of placement turns.
+enum PlacementRule {
+  /// Agreed rules: seat 0 opens with two tokens, then turns alternate; seat 0
+  /// runs out first, so seat 1 places its last two in a row.
+  openingAndClosingDouble,
+
+  /// Both seats open with two tokens, then strict alternation (no closing
+  /// double). In 100 Hard-vs-Hard games this gave seat 0 61 wins and seat 1
+  /// 35, against 24 and 74 for the agreed rules.
+  symmetricOpening,
+}
+
 /// Pure rules of Naw Tin: move generation, line completion, protection,
 /// captures, turn order and end-of-game detection. No UI, no side effects.
 abstract final class Rules {
+  /// Which placement order is in force. The agreed rules are the default; the
+  /// alternative exists because self-play showed the closing double favours
+  /// seat 1 (see `PlacementRule`).
+  static PlacementRule placementRule = PlacementRule.openingAndClosingDouble;
+
   // ---------------------------------------------------------------- lines
 
   /// Bitmask (16 bits, one per line) of the lines through [point] that are
@@ -168,6 +185,12 @@ abstract final class Rules {
       nextPlaces = 1;
     }
 
+    if (placementRule == PlacementRule.symmetricOpening &&
+        nextTurn == 1 &&
+        hand1 == Board.tokensPerPlayer &&
+        m.isPlacement) {
+      nextPlaces = 2; // seat 1 also opens with two tokens
+    }
     final key = GameState.keyOf(mask0, mask1, nextTurn);
     // Placements and captures cannot be undone, so the position run restarts.
     final history = (m.isPlacement || captured)
