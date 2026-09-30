@@ -216,6 +216,17 @@ class GameController extends Notifier<GameUiState> {
     return GameUiState.initial(ref.read(setupProvider).names);
   }
 
+  /// Play again. In two-player mode the players swap seats, so the one who
+  /// moved second last time now starts (the first mover has a small edge).
+  void rematch() {
+    final setup = ref.read(setupProvider);
+    if (setup.mode == GameMode.friend) {
+      final n = setup.friendNames;
+      ref.read(setupProvider.notifier).setFriendNames(n[1], n[0]);
+    }
+    newGame();
+  }
+
   /// Starts a fresh game with the names chosen on the setup screen.
   void newGame({List<String>? names}) {
     _generation++;

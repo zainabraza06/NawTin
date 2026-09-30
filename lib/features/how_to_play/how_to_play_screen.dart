@@ -49,8 +49,8 @@ class _HowToPlayScreenState extends ConsumerState<HowToPlayScreen> {
         _Lesson(
           'PLACEMENT',
           'Drop your tokens',
-          'Player 1 opens by placing two tokens, then you take turns placing one. '
-              'When Player 1 runs out, Player 2 places the last two. Lines you '
+          'Each player opens with two tokens on their first turn, then you take turns '
+              'placing one at a time. Lines you '
               'complete while placing count. Once all 18 tokens are down, movement begins.',
           DemoScripts.placement,
           [tk.aqua, tk.violet],

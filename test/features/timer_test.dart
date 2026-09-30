@@ -158,12 +158,16 @@ void main() {
     test('timeouts are counted per player', () async {
       final c = make();
       tap(c, 0);
-      tap(c, 4);
-      // seat 1 times out once, then plays normally, seat 0 times out once
+      tap(c, 4); // seat 0 has opened; seat 1 has two tokens to place
+      // seat 1 times out once on its first token ...
       c.read(clockProvider.notifier).advance(120000);
       await settle(c);
       ctl(c).finishAnimation(ui(c).fxSerial);
       expect(ui(c).timeouts, [0, 1]);
+      // ... plays its second token itself, then seat 0 times out once
+      final free = [9, 11, 13].firstWhere((p) => ui(c).game.emptyMask & bit(p) != 0);
+      tap(c, free);
+      expect(ui(c).game.turn, 0);
       c.read(clockProvider.notifier).advance(120000);
       await settle(c);
       ctl(c).finishAnimation(ui(c).fxSerial);
@@ -173,7 +177,7 @@ void main() {
 
     test('a timeout while choosing a capture eats a token on the same step', () async {
       final c = make();
-      for (final p in [0, 1, 8, 3, 9, 20]) {
+      for (final p in [0, 1, 8, 9, 3]) {
         tap(c, p);
       }
       ctl(c).tapPoint(10); // completes 8-9-10, now choosing what to eat
@@ -182,7 +186,7 @@ void main() {
       await settle(c);
       final s = ui(c);
       expect(s.game.mask1 & bit(10), isNot(0), reason: 'the chosen step stands');
-      expect(popCount(s.game.mask0), 3, reason: 'one token was eaten');
+      expect(popCount(s.game.mask0), 2, reason: 'one token was eaten');
       expect(s.eaten, [0, 1]);
     });
 

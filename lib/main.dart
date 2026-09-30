@@ -6,7 +6,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_router.dart';
-import 'core/engine/engine.dart';
 import 'services/prefs_store.dart';
 import 'services/settings.dart';
 import 'theme/tokens.dart';
@@ -18,10 +17,9 @@ import 'theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   // fonts are bundled in assets/google_fonts: never hit the network for them
-  // Placement order. The agreed rules are the default; self-play suggests the
-  // symmetric opening is fairer (see README, "Seat balance"):
-  // Rules.placementRule = PlacementRule.symmetricOpening;
-  Rules.placementRule = PlacementRule.openingAndClosingDouble;
+  // Both players open with two tokens (the default). The original order, with
+  // a closing double for player 2, is: Rules.placementRule =
+  // PlacementRule.openingAndClosingDouble (see README, "Seat balance").
   GoogleFonts.config.allowRuntimeFetching = false;
   // players never see a red error screen or a stack trace in release builds
   if (kReleaseMode) {

@@ -124,10 +124,10 @@ void main() {
       await t.pump(const Duration(milliseconds: 100));
       expect(rec.played, contains(Sfx.phutas));
 
-      for (final p in [8, 3, 9, 20, 10]) {
+      for (final p in [8, 9, 3, 10]) {
         await play(t, c, p);
       }
-      await play(t, c, 20); // eat
+      await play(t, c, 3); // eat
       expect(rec.played, contains(Sfx.machyas));
       await t.pumpWidget(const SizedBox());
     });

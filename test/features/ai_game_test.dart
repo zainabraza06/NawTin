@@ -32,7 +32,7 @@ Future<void> aiReplies(ProviderContainer c) async {
 }
 
 void main() {
-  test('human first: AI answers after the human finishes the opening double',
+  test('human first: the AI answers with its own opening double',
       () async {
     final c = make(humanFirst: true);
     final ctl = c.read(gameControllerProvider.notifier);
@@ -51,9 +51,12 @@ void main() {
     ctl.tapPoint(9);
     expect(c.read(gameControllerProvider).game.mask0, maskOf([0, 4]));
 
+    await aiReplies(c); // the AI's first opening token ...
+    expect(c.read(gameControllerProvider).status, GameStatus.aiThinking,
+        reason: '... and its second: the AI also opens with two');
     await aiReplies(c);
     final s = c.read(gameControllerProvider);
-    expect(s.game.mask1, isNot(0));
+    expect(popCount(s.game.mask1), 2);
     expect(s.game.turn, 0);
     expect(s.status, GameStatus.awaitingInput);
     expect(s.phutasReady && s.phutasSeat == 1, isFalse,

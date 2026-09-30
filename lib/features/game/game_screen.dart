@@ -373,7 +373,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                 GameOverOverlay(
                   ui: ui,
                   prefs: prefs,
-                  onRematch: ctl.newGame,
+                  onRematch: ctl.rematch,
                   onChangeMode: () => Navigator.of(context).maybePop(),
                   onHome: _goHome,
                 ),

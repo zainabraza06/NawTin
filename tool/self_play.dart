@@ -1,5 +1,5 @@
 // Self-play harness. Run from the project root:
-//   dart run tool/self_play.dart [games] [hardMs] [easyMs] [agreed|symmetric] [hh]
+//   dart run tool/self_play.dart [games] [hardMs] [easyMs] [symmetric|agreed] [hh]
 //   e.g. dart run tool/self_play.dart 10 400 100
 // ignore_for_file: avoid_print
 // Prints Hard-vs-Easy, Hard-vs-Hard (seat fairness) and Medium-vs-Easy.
@@ -11,8 +11,8 @@ void main(List<String> args) {
   final games = args.isNotEmpty ? int.parse(args[0]) : 10;
   final hardMs = args.length > 1 ? int.parse(args[1]) : 400;
   final easyMs = args.length > 2 ? int.parse(args[2]) : 100;
-  if (args.length > 3 && args[3] == 'symmetric') {
-    Rules.placementRule = PlacementRule.symmetricOpening;
+  if (args.length > 3 && args[3] == 'agreed') {
+    Rules.placementRule = PlacementRule.openingAndClosingDouble;
   }
   final onlyHard = args.length > 4;
 

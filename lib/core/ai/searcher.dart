@@ -36,8 +36,8 @@ class _Abort implements Exception {
 ///
 /// Two details of Naw Tin shape the recursion:
 ///  * a capture is part of the move, so every capture choice is its own branch;
-///  * the same seat can move twice in a row (the opening double placement and
-///    the closing double placement), so the score is only negated, and the
+///  * the same seat can move twice in a row (each player's opening double
+///    placement, and the closing double under the original rule), so the score is only negated, and the
 ///    window only flipped, when the side to move actually changes.
 class Searcher {
   Searcher(this.cfg);

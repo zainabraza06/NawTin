@@ -59,13 +59,13 @@ void main() {
     }
 
     // seat 1 completes 8-9-10 and eats
-    for (final p in [0, 1, 8, 3, 9, 20, 10]) {
+    for (final p in [0, 1, 8, 9, 3, 10]) {
       await play(p);
     }
     expect(container.read(gameControllerProvider).status, GameStatus.capturePick);
     await t.pump(const Duration(milliseconds: 300));
     await _save(t, shot, 'capture_pick');
-    await play(20);
+    await play(3);
     expect(container.read(gameControllerProvider).status, GameStatus.awaitingInput);
     expect(container.read(gameControllerProvider).eaten, [0, 1]);
     await _save(t, shot, 'after_capture');

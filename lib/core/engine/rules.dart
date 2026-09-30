@@ -5,23 +5,23 @@ import 'move.dart';
 
 /// Order of placement turns.
 enum PlacementRule {
-  /// Agreed rules: seat 0 opens with two tokens, then turns alternate; seat 0
+  /// Original rules: seat 0 opens with two tokens, then turns alternate; seat 0
   /// runs out first, so seat 1 places its last two in a row.
   openingAndClosingDouble,
 
-  /// Both seats open with two tokens, then strict alternation (no closing
-  /// double). In 100 Hard-vs-Hard games this gave seat 0 61 wins and seat 1
-  /// 35, against 24 and 74 for the agreed rules.
+  /// The default: BOTH seats open with two tokens, then strict alternation (no
+  /// closing double). In 100 Hard-vs-Hard games this gave seat 0 61 wins and
+  /// seat 1 35, against 24 and 74 for the original rules.
   symmetricOpening,
 }
 
 /// Pure rules of Naw Tin: move generation, line completion, protection,
 /// captures, turn order and end-of-game detection. No UI, no side effects.
 abstract final class Rules {
-  /// Which placement order is in force. The agreed rules are the default; the
-  /// alternative exists because self-play showed the closing double favours
-  /// seat 1 (see `PlacementRule`).
-  static PlacementRule placementRule = PlacementRule.openingAndClosingDouble;
+  /// Which placement order is in force. Both players open with two tokens by
+  /// default; the original opening/closing-double order is kept as an option
+  /// (self-play showed its closing double strongly favours seat 1).
+  static PlacementRule placementRule = PlacementRule.symmetricOpening;
 
   // ---------------------------------------------------------------- lines
 

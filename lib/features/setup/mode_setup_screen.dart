@@ -171,8 +171,8 @@ class _ModeSetupScreenState extends ConsumerState<ModeSetupScreen> {
         const SizedBox(height: 10),
         Text(
           setup.humanFirst
-              ? 'You place two tokens on the opening turn. Naw Bot places the last two.'
-              : 'Naw Bot opens with two tokens. You place the last two.',
+              ? 'You open with two tokens, then Naw Bot opens with two, then you alternate one at a time.'
+              : 'Naw Bot opens with two tokens, then you open with two, then you alternate one at a time.',
           style: tk.body(NawTinTokens.scaleXS + 1),
         ),
       ],
@@ -190,7 +190,7 @@ class _ModeSetupScreenState extends ConsumerState<ModeSetupScreen> {
         _NameField(seat: 1, controller: _b, hint: 'Player 2', error: _showError && _b.text.trim().isEmpty),
         SizedBox(height: tk.space2),
         Text(
-          'Player 1 goes first and places two tokens on the opening turn. Each turn has a 2:00 clock.',
+          'Both players open with two tokens, then alternate one at a time. Player 1 starts, and a rematch swaps who starts. Each turn has a 2:00 clock.',
           style: tk.body(NawTinTokens.scaleXS + 1),
         ),
         if (_showError)

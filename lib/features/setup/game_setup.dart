@@ -36,7 +36,7 @@ class GameSetup {
   final GameMode mode;
   final Difficulty difficulty;
 
-  /// vs AI: the human takes seat 0 (moves first, opening double) when true.
+  /// vs AI: the human takes seat 0 (places and moves first) when true.
   final bool humanFirst;
   final List<String> friendNames;
 

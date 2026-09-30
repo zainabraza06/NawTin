@@ -73,11 +73,15 @@ void human(ProviderContainer c, int p) {
   ctl(c).finishAnimation(ui(c).fxSerial);
 }
 
+/// Lets the AI play its whole turn (two tokens on its opening turn) and
+/// returns when it is the human's move again.
 Future<void> aiReplies(ProviderContainer c) async {
-  for (var i = 0; i < 60; i++) {
+  for (var i = 0; i < 100; i++) {
     await Future<void>.delayed(const Duration(milliseconds: 100));
-    if (ui(c).status == GameStatus.animating) {
-      ctl(c).finishAnimation(ui(c).fxSerial);
+    final s = ui(c);
+    if (s.status == GameStatus.animating) {
+      ctl(c).finishAnimation(s.fxSerial);
+    } else if (s.status == GameStatus.awaitingInput) {
       return;
     }
   }
@@ -164,7 +168,7 @@ void main() {
     });
 
     test('hint 2 during a capture pick picks the token for the pending step', () async {
-      final c = makeScripted([const Move.place(20)]);
+      final c = makeScripted([const Move.place(20), const Move.place(21)]);
       human(c, 0);
       human(c, 1);
       await aiReplies(c);
@@ -173,7 +177,7 @@ void main() {
       await ctl(c).applyBestMoveHint();
       expect(ui(c).hintMove!.to, 2);
       expect(ui(c).hintMove!.hasCapture, isTrue);
-      expect(ui(c).hintMove!.capture, 20);
+      expect([20, 21], contains(ui(c).hintMove!.capture));
     });
   });
 
@@ -215,21 +219,21 @@ void main() {
     });
 
     test('rewinding a capture brings the eaten token back with its stats', () async {
-      final c = makeScripted([const Move.place(20), const Move.place(21)]);
+      final c = makeScripted([const Move.place(20), const Move.place(21), const Move.place(22)]);
       human(c, 0);
       human(c, 1);
-      await aiReplies(c); // AI places 20
+      await aiReplies(c); // AI opens with 20 and 21
       ctl(c).tapPoint(2); // human completes 0-1-2 ...
       ctl(c).tapPoint(20); // ... and eats the AI's token
       ctl(c).finishAnimation(ui(c).fxSerial);
       expect(ui(c).eaten, [1, 0]);
       expect(ui(c).linesFormed, [1, 0]);
-      await aiReplies(c); // AI places 21
-      expect(ui(c).game.mask1, maskOf([21]));
+      await aiReplies(c); // AI places 22
+      expect(ui(c).game.mask1, maskOf([21, 22]));
 
       expect(ctl(c).rewind(), isTrue);
       final s = ui(c);
-      expect(s.game.mask1, maskOf([20]), reason: 'the eaten token is back');
+      expect(s.game.mask1, maskOf([20, 21]), reason: 'the eaten token is back');
       expect(s.game.mask0, maskOf([0, 1]));
       expect(s.eaten, [0, 0]);
       expect(s.linesFormed, [0, 0]);

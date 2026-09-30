@@ -20,8 +20,8 @@ Release builds, signing and the store listing: [docs/PLAY_STORE.md](docs/PLAY_ST
 
 ## Rules in one screen
 
-- **Placement:** player 1 places two tokens, then turns alternate. Lines made
-  while placing count.
+- **Placement:** each player opens with two tokens, then turns alternate one
+  token at a time. Lines made while placing count.
 - **Movement:** slide a token one step along a line to an empty point.
 - **PHUTAS** (button): "I am one move from a new line." Only a warning.
 - **MACHYAS:** complete a line and eat one opponent token (not one in a finished
@@ -57,17 +57,22 @@ hint search.
 Strength (self-play, `dart run tool/self_play.dart 100 120 30`): Hard beats Easy
 88-10, Medium beats Easy 82-17.
 
-### Seat balance - a decision for the owner
+### Seat balance
 
-With the agreed placement rules (player 1 opens with two tokens; player 2 places
-its last two in a row) 100 Hard-vs-Hard games gave **seat 0: 24 wins, seat 1: 74
-wins**. A symmetric alternative, where each player opens with two tokens and there
-is no closing double, gave **61 / 35**. Plain alternation gave 66 / 29.
+Self-play (100+ independent Hard-vs-Hard games per rule) measured three
+placement orders:
 
-The engine supports both (`Rules.placementRule`). The agreed rules are the default;
-to adopt the symmetric opening set
-`Rules.placementRule = PlacementRule.symmetricOpening` in `lib/main.dart` (there
-is a commented line ready). Validate with human testing before changing.
+| Rule | seat 0 wins | seat 1 wins |
+|---|---|---|
+| Original: seat 0 opens with two, seat 1 places its last two in a row | 24 | 74 |
+| Strict alternation, no doubles | 66 | 29 |
+| **Both players open with two tokens (the default)** | 61-71% of decisive games | 29-39% |
+
+The default is the third: nobody gets a closing double, and both players start
+with two tokens. Being first to move still carries a modest edge, so in
+two-player mode a **rematch swaps who starts**. Against the AI you choose who
+goes first. The original order is still available as
+`Rules.placementRule = PlacementRule.openingAndClosingDouble` (see `lib/main.dart`).
 
 ### Sound, voices and accessibility
 

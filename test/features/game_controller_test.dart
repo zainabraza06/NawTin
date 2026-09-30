@@ -30,14 +30,19 @@ void main() {
     expect(s.targets, Board.fullMask);
   });
 
-  test('opening turn: two placements by seat 0, then seat 1', () {
+  test('opening turns: both players place two tokens, then turns alternate', () {
     final c = make();
+    int turn() => c.read(gameControllerProvider).game.turn;
     tap(c, 0);
-    expect(c.read(gameControllerProvider).game.turn, 0);
+    expect(turn(), 0);
     tap(c, 4);
-    expect(c.read(gameControllerProvider).game.turn, 1);
+    expect(turn(), 1, reason: 'seat 0 has placed its two');
     tap(c, 9);
-    expect(c.read(gameControllerProvider).game.turn, 0);
+    expect(turn(), 1, reason: 'seat 1 also places two on its first turn');
+    tap(c, 11);
+    expect(turn(), 0);
+    tap(c, 13);
+    expect(turn(), 1, reason: 'one token each from now on');
   });
 
   test('input is ignored while a move is animating', () {
@@ -61,24 +66,22 @@ void main() {
 
   test('completing a line enters capture pick; protected tokens are locked', () {
     final c = make();
-    // seat 0: 0,1  seat 1: 8,9  (seat 0 placed 2 first, so order below)
-    tap(c, 0); // p0
-    tap(c, 1); // p0
-    tap(c, 8); // p1
-    tap(c, 3); // p0 (decoy)
-    tap(c, 9); // p1
-    tap(c, 20); // p0
-    tap(c, 10); // p1 completes 8-9-10 -> must eat
+    tap(c, 0); // seat 0 opens with two
+    tap(c, 1);
+    tap(c, 8); // seat 1 opens with two
+    tap(c, 9);
+    tap(c, 3); // seat 0 (decoy)
+    tap(c, 10); // seat 1 completes 8-9-10 -> must eat
     var s = c.read(gameControllerProvider);
     expect(s.status, GameStatus.capturePick);
-    expect(s.captureMask, maskOf([0, 1, 3, 20]));
+    expect(s.captureMask, maskOf([0, 1, 3]));
     // wrong tap: an empty point does nothing
     c.read(gameControllerProvider.notifier).tapPoint(15);
     expect(c.read(gameControllerProvider).status, GameStatus.capturePick);
-    // eat seat 0's token 20
-    tap(c, 20);
+    // eat seat 0's token 3
+    tap(c, 3);
     s = c.read(gameControllerProvider);
-    expect(s.game.mask0, maskOf([0, 1, 3]));
+    expect(s.game.mask0, maskOf([0, 1]));
     expect(s.eaten, [0, 1]);
     expect(s.linesFormed, [0, 1]);
     expect(s.status, GameStatus.awaitingInput);
@@ -92,12 +95,12 @@ void main() {
     const b = [1, 3, 5, 7, 8, 10, 12, 14, 21];
     tap(c, a[0]);
     tap(c, a[1]);
-    for (var i = 0; i < 7; i++) {
+    tap(c, b[0]);
+    tap(c, b[1]);
+    for (var i = 2; i < 9; i++) {
+      tap(c, a[i]);
       tap(c, b[i]);
-      tap(c, a[i + 2]);
     }
-    tap(c, b[7]);
-    tap(c, b[8]);
     var s = c.read(gameControllerProvider);
     expect(s.game.phase, GamePhase.movement);
     expect(s.game.turn, 0);
@@ -135,6 +138,21 @@ void main() {
     expect(s.phutasSerial, 1);
     ctl.callPhutas(); // no effect once spent
     expect(c.read(gameControllerProvider).phutasSerial, 1);
+  });
+
+  test('a two-player rematch swaps who starts; vs AI keeps the seats', () {
+    final c = make();
+    c.read(setupProvider.notifier).setFriendNames('Zainab', 'Sam');
+    c.read(gameControllerProvider.notifier).newGame();
+    expect(c.read(gameControllerProvider).names, ['Zainab', 'Sam']);
+    c.read(gameControllerProvider.notifier).rematch();
+    expect(c.read(gameControllerProvider).names, ['Sam', 'Zainab']);
+    c.read(gameControllerProvider.notifier).rematch();
+    expect(c.read(gameControllerProvider).names, ['Zainab', 'Sam']);
+
+    c.read(setupProvider.notifier).setMode(GameMode.vsAi);
+    c.read(gameControllerProvider.notifier).rematch();
+    expect(c.read(gameControllerProvider).names, ['You', GameSetup.aiName]);
   });
 
   test('newGame resets everything', () {

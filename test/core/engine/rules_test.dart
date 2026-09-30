@@ -31,6 +31,11 @@ GameState play(GameState s, List<Move> moves) {
 }
 
 void main() {
+  // Most tests below pin the ORIGINAL placement order (opening + closing
+  // double); the symmetric opening (the app default) has its own group.
+  setUp(() => Rules.placementRule = PlacementRule.openingAndClosingDouble);
+  tearDown(() => Rules.placementRule = PlacementRule.symmetricOpening);
+
   placementRuleTests();
   group('lines and protection', () {
     test('linesCompletedAt sees only lines through the point', () {
@@ -504,7 +509,6 @@ void main() {
 void placementRuleTests() {
   group('PlacementRule.symmetricOpening', () {
     setUp(() => Rules.placementRule = PlacementRule.symmetricOpening);
-    tearDown(() => Rules.placementRule = PlacementRule.openingAndClosingDouble);
 
     test('both seats open with two tokens, then strict alternation', () {
       var s = GameState.initial();
