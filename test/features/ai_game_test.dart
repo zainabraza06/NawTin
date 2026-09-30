@@ -101,6 +101,6 @@ void main() {
 
 class _ExplodingAi extends AiService {
   @override
-  Future<SearchResult> search(GameState state, AiConfig config) =>
+  Future<SearchResult> search(GameState state, AiConfig config, {Move? onlyStep}) =>
       throw StateError('AI must not run in two-player mode');
 }

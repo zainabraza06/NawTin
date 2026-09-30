@@ -57,9 +57,15 @@ class Searcher {
     for (var p = 0; p < Board.pointCount; p++) Board.neighbors[p].length,
   ]);
 
-  /// Finds the best move for the side to move in [root].
-  SearchResult search(GameState root) {
-    final legal = Rules.legalMoves(root);
+  /// Finds the best move for the side to move in [root]. With [onlyStep] the
+  /// search is restricted to moves that make that step (used to pick which
+  /// token to eat once the player has already chosen where to place/slide).
+  SearchResult search(GameState root, {Move? onlyStep}) {
+    var legal = Rules.legalMoves(root);
+    if (onlyStep != null) {
+      final same = legal.where((m) => m.step == onlyStep).toList();
+      if (same.isNotEmpty) legal = same;
+    }
     assert(legal.isNotEmpty, 'search called on a finished game');
     if (legal.length == 1) return SearchResult(legal.first, 0, 0, 0);
 
