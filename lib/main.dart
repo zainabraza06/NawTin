@@ -7,6 +7,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_router.dart';
 import 'services/prefs_store.dart';
+import 'services/settings.dart';
+import 'theme/tokens.dart';
 import 'services/sound/audio_sound_service.dart';
 import 'services/sound/sound_service.dart';
 import 'theme/app_theme.dart';
@@ -51,6 +53,12 @@ class NawTinApp extends StatelessWidget {
       title: 'Naw Tin',
       debugShowCheckedModeBanner: false,
       theme: buildAppTheme(),
+      builder: (context, child) => Consumer(
+        builder: (context, ref, _) => MotionScope(
+          prefs: ref.watch(settingsProvider).motion,
+          child: child ?? const SizedBox.shrink(),
+        ),
+      ),
       initialRoute: Routes.splash,
       onGenerateRoute: onGenerateRoute,
     );

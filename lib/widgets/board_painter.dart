@@ -87,7 +87,6 @@ class BoardPainter extends CustomPainter {
     _r = _u * 0.36;
     canvas.translate((size.width - side) / 2, (size.height - side) / 2);
 
-    _paintLines(canvas);
     _paintLineHighlights(canvas);
     _paintPoints(canvas);
     _paintTokens(canvas);
@@ -102,25 +101,6 @@ class BoardPainter extends CustomPainter {
     return Path()
       ..moveTo(_pos(pts.first).dx, _pos(pts.first).dy)
       ..lineTo(_pos(pts.last).dx, _pos(pts.last).dy);
-  }
-
-  void _paintLines(Canvas canvas) {
-    final glow = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = _u * 0.2
-      ..strokeCap = StrokeCap.round
-      ..color = tk.gold.withValues(alpha: 0.16)
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, _u * 0.16);
-    final core = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(2, _u * 0.05)
-      ..strokeCap = StrokeCap.round
-      ..color = tk.gold;
-    for (var l = 0; l < Board.lineCount; l++) {
-      final path = _linePath(l);
-      canvas.drawPath(path, glow);
-      canvas.drawPath(path, core);
-    }
   }
 
   void _paintLineHighlights(Canvas canvas) {
@@ -142,15 +122,10 @@ class BoardPainter extends CustomPainter {
   // ----------------------------------------------------------------- points
 
   void _paintPoints(Canvas canvas) {
-    final ring = Paint()
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = math.max(1.5, _u * 0.035)
-      ..color = tk.gold.withValues(alpha: 0.9);
     final wave = 0.5 + 0.5 * math.sin(pulse * math.pi * 2);
     final placement = selected == null;
     for (var p = 0; p < Board.pointCount; p++) {
       final c = _pos(p);
-      canvas.drawCircle(c, _u * 0.11, ring);
       if (targets & bit(p) != 0) {
         // valid target: a ring that blooms outward. Placement targets are
         // everywhere, so they stay subtle.
@@ -513,4 +488,57 @@ class BoardPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(BoardPainter old) => true; // driven by `repaint` ticks
+}
+
+
+/// The part of the board that never changes between frames: the gold lines with
+/// their glow and the hollow rings at the 24 points. It lives in its own
+/// RepaintBoundary, so the expensive blurred glow is rasterised once instead of
+/// every frame.
+class BoardBasePainter extends CustomPainter {
+  const BoardBasePainter(this.tk);
+
+  final NawTinTokens tk;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final side = math.min(size.width, size.height);
+    final m = side * 0.09;
+    final u = (side - 2 * m) / 6;
+    canvas.translate((size.width - side) / 2, (size.height - side) / 2);
+    Offset pos(int p) {
+      final g = Board.gridOf(p);
+      return Offset(m + g[0] * u, m + g[1] * u);
+    }
+
+    final glow = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = u * 0.2
+      ..strokeCap = StrokeCap.round
+      ..color = tk.gold.withValues(alpha: 0.16)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, u * 0.16);
+    final core = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(2, u * 0.05)
+      ..strokeCap = StrokeCap.round
+      ..color = tk.gold;
+    for (var l = 0; l < Board.lineCount; l++) {
+      final pts = Board.lines[l];
+      final path = Path()
+        ..moveTo(pos(pts.first).dx, pos(pts.first).dy)
+        ..lineTo(pos(pts.last).dx, pos(pts.last).dy);
+      canvas.drawPath(path, glow);
+      canvas.drawPath(path, core);
+    }
+    final ring = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(1.5, u * 0.035)
+      ..color = tk.gold.withValues(alpha: 0.9);
+    for (var p = 0; p < Board.pointCount; p++) {
+      canvas.drawCircle(pos(p), u * 0.11, ring);
+    }
+  }
+
+  @override
+  bool shouldRepaint(BoardBasePainter old) => old.tk != tk;
 }

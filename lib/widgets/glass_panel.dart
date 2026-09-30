@@ -26,6 +26,20 @@ class GlassPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final tk = context.tokens;
     final r = BorderRadius.circular(radius ?? tk.radiusL);
+    // Low-power mode skips the frosted blur (the costliest effect on old GPUs)
+    // and uses a slightly denser tint so the panel still reads as glass.
+    final lowPower = MotionScope.of(context).lowPower;
+    final decorated = Container(
+      padding: padding,
+      decoration: BoxDecoration(
+        borderRadius: r,
+        color: tk.glassFill.withValues(alpha: lowPower ? 0.16 : 0.08),
+        border: Border.all(
+          color: glow?.withValues(alpha: 0.55) ?? tk.glassBorder.withValues(alpha: 0.12),
+        ),
+      ),
+      child: child,
+    );
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: r,
@@ -41,20 +55,9 @@ class GlassPanel extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: r,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: Container(
-            padding: padding,
-            decoration: BoxDecoration(
-              borderRadius: r,
-              color: tk.glassFill.withValues(alpha: 0.08),
-              border: Border.all(
-                color: glow?.withValues(alpha: 0.55) ?? tk.glassBorder.withValues(alpha: 0.12),
-              ),
-            ),
-            child: child,
-          ),
-        ),
+        child: lowPower
+            ? decorated
+            : BackdropFilter(filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur), child: decorated),
       ),
     );
   }

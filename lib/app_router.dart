@@ -27,6 +27,8 @@ Route<dynamic> onGenerateRoute(RouteSettings settings) {
   final fadeOnly = settings.name == Routes.home || settings.name == Routes.splash;
   return PageRouteBuilder<void>(
     settings: settings,
+    // opaque: Flutter stops animating/painting the screen underneath
+    opaque: true,
     transitionDuration: const Duration(milliseconds: 420),
     reverseTransitionDuration: const Duration(milliseconds: 320),
     pageBuilder: (_, __, ___) => page,

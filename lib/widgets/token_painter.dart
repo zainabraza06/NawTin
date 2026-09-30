@@ -32,12 +32,20 @@ void paintToken(
 
   // outer glow
   if (glow > 0) {
+    // a radial falloff reads like a blurred halo but costs no blur filter
+    final halo = r * 1.9;
     canvas.drawCircle(
       Offset.zero,
-      r * 1.25,
+      halo,
       Paint()
-        ..color = base.withValues(alpha: 0.5 * glow * alpha)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, r * 0.55),
+        ..shader = RadialGradient(
+          colors: [
+            base.withValues(alpha: 0.55 * glow * alpha),
+            base.withValues(alpha: 0.22 * glow * alpha),
+            base.withValues(alpha: 0),
+          ],
+          stops: const [0.0, 0.55, 1.0],
+        ).createShader(Rect.fromCircle(center: Offset.zero, radius: halo)),
     );
   }
 

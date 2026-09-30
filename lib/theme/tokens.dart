@@ -144,3 +144,19 @@ class MotionPrefs {
   final bool lowPower;
   final bool reduceMotion;
 }
+
+/// Makes the motion / power preferences available to any widget below the
+/// app root, without threading them through constructors.
+class MotionScope extends InheritedWidget {
+  const MotionScope({super.key, required this.prefs, required super.child});
+
+  final MotionPrefs prefs;
+
+  /// Defaults to full effects when there is no scope (for example in tests).
+  static MotionPrefs of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<MotionScope>()?.prefs ?? const MotionPrefs();
+
+  @override
+  bool updateShouldNotify(MotionScope old) =>
+      old.prefs.lowPower != prefs.lowPower || old.prefs.reduceMotion != prefs.reduceMotion;
+}

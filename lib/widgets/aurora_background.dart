@@ -52,6 +52,21 @@ class _AuroraBackgroundState extends State<AuroraBackground>
   }
 }
 
+class _Star {
+  const _Star(this.x, this.y, this.speed, this.phase, this.radius);
+  final double x, y, speed, phase, radius;
+}
+
+/// Star field generated once (not re-rolled with a Random every frame).
+final List<_Star> _stars = () {
+  final rnd = math.Random(11);
+  return List.generate(
+    64,
+    (_) => _Star(rnd.nextDouble(), rnd.nextDouble(), 0.2 + rnd.nextDouble() * 0.6,
+        rnd.nextDouble() * math.pi * 2, 0.6 + rnd.nextDouble() * 1.1),
+  );
+}();
+
 class _AuroraPainter extends CustomPainter {
   _AuroraPainter(this.tk, this.anim, this.starCount) : super(repaint: anim);
 
@@ -73,13 +88,16 @@ class _AuroraPainter extends CustomPainter {
     );
 
     final t = anim.value * math.pi * 2;
+    // a soft radial falloff instead of a full-screen blur filter
     void blob(Color color, Offset center, double radius) {
       canvas.drawCircle(
         center,
-        radius,
+        radius * 1.6,
         Paint()
-          ..color = color.withValues(alpha: 0.15)
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, radius * 0.6),
+          ..shader = RadialGradient(
+            colors: [color.withValues(alpha: 0.2), color.withValues(alpha: 0.08), color.withValues(alpha: 0)],
+            stops: const [0.0, 0.5, 1.0],
+          ).createShader(Rect.fromCircle(center: center, radius: radius * 1.6)),
       );
     }
 
@@ -94,17 +112,13 @@ class _AuroraPainter extends CustomPainter {
       size.shortestSide * 0.5,
     );
 
-    final rnd = math.Random(11);
     final star = Paint();
-    for (var i = 0; i < starCount; i++) {
-      final x = rnd.nextDouble();
-      final y = rnd.nextDouble();
-      final speed = 0.2 + rnd.nextDouble() * 0.6;
-      final phase = rnd.nextDouble() * math.pi * 2;
-      final dx = (x + anim.value * speed * 0.15) % 1.0;
-      final tw = 0.35 + 0.35 * math.sin(t * 2 + phase);
+    for (var i = 0; i < _stars.length && i < starCount; i++) {
+      final st = _stars[i];
+      final dx = (st.x + anim.value * st.speed * 0.15) % 1.0;
+      final tw = 0.35 + 0.35 * math.sin(t * 2 + st.phase);
       star.color = Colors.white.withValues(alpha: 0.12 + 0.3 * tw);
-      canvas.drawCircle(Offset(dx * size.width, y * size.height), 0.6 + rnd.nextDouble() * 1.1, star);
+      canvas.drawCircle(Offset(dx * size.width, st.y * size.height), st.radius, star);
     }
   }
 

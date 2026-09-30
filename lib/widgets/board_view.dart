@@ -136,7 +136,14 @@ class _BoardViewState extends State<BoardView> with TickerProviderStateMixin {
                 final p = BoardPainter.pointAt(d.localPosition, size);
                 if (p != null) widget.onPointTap(p);
               },
-              child: RepaintBoundary(
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  // static lines + point rings, rasterised once
+                  RepaintBoundary(
+                    child: CustomPaint(size: size, painter: BoardBasePainter(tk)),
+                  ),
+                  RepaintBoundary(
                 child: AnimatedBuilder(
                   animation: Listenable.merge([_pulse, _fxCtrl, _phutasCtrl]),
                   builder: (context, _) {
@@ -175,6 +182,8 @@ class _BoardViewState extends State<BoardView> with TickerProviderStateMixin {
                     );
                   },
                 ),
+                  ),
+                ],
               ),
             );
           },
