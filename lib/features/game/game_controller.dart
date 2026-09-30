@@ -4,10 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/ai/ai.dart';
 import '../../core/engine/engine.dart';
 import '../../services/ai_provider.dart';
+import '../../services/turn_clock.dart';
 import '../setup/game_setup.dart';
 
 /// Where the game screen is in its turn cycle.
-enum GameStatus { awaitingInput, capturePick, animating, aiThinking, gameOver }
+enum GameStatus { awaitingInput, capturePick, animating, aiThinking, autoPlaying, gameOver }
 
 const Object _keep = Object();
 
@@ -33,6 +34,12 @@ class GameUiState {
     this.linesFormed = const [0, 0],
     this.swings = const [0, 0],
     this.history = const [],
+    this.timeouts = const [0, 0],
+    this.timeoutSeat = 0,
+    this.timeoutSerial = 0,
+    this.timeoutDisqualified = false,
+    this.paused = false,
+    this.pausesUsed = 0,
   });
 
   factory GameUiState.initial(List<String> names) {
@@ -81,6 +88,18 @@ class GameUiState {
   /// Positions before every played move (used by rewind in a later stage).
   final List<GameState> history;
 
+  /// Timeouts per seat. The first auto-plays a move, the second disqualifies.
+  final List<int> timeouts;
+
+  /// Who timed out last, and a counter so the UI can announce it once.
+  final int timeoutSeat;
+  final int timeoutSerial;
+  final bool timeoutDisqualified;
+
+  /// Manual pause (max [GameController.maxPauses] per game).
+  final bool paused;
+  final int pausesUsed;
+
   bool get isOver => game.isOver;
 
   GameUiState copyWith({
@@ -100,6 +119,12 @@ class GameUiState {
     List<int>? linesFormed,
     List<int>? swings,
     List<GameState>? history,
+    List<int>? timeouts,
+    int? timeoutSeat,
+    int? timeoutSerial,
+    bool? timeoutDisqualified,
+    bool? paused,
+    int? pausesUsed,
   }) =>
       GameUiState(
         game: game ?? this.game,
@@ -122,6 +147,12 @@ class GameUiState {
         linesFormed: linesFormed ?? this.linesFormed,
         swings: swings ?? this.swings,
         history: history ?? this.history,
+        timeouts: timeouts ?? this.timeouts,
+        timeoutSeat: timeoutSeat ?? this.timeoutSeat,
+        timeoutSerial: timeoutSerial ?? this.timeoutSerial,
+        timeoutDisqualified: timeoutDisqualified ?? this.timeoutDisqualified,
+        paused: paused ?? this.paused,
+        pausesUsed: pausesUsed ?? this.pausesUsed,
       );
 }
 
@@ -134,21 +165,41 @@ class GameController extends Notifier<GameUiState> {
   /// Shortest time the AI "thinks", so its replies do not feel instant.
   static const Duration _minThink = Duration(milliseconds: 550);
 
+  /// Pauses allowed per game.
+  static const int maxPauses = 2;
+
+  bool _backgrounded = false;
+  bool _adHold = false;
+
   @override
-  GameUiState build() => GameUiState.initial(ref.read(setupProvider).names);
+  GameUiState build() {
+    final clock = ref.read(clockProvider.notifier);
+    clock.onExpired = _onTimeout;
+    ref.onDispose(() => clock.onExpired = null);
+    // any state change may start or stop the countdown
+    listenSelf((prev, _) {
+      if (prev != null) _syncClock(); // never touch other providers mid-build
+    });
+    return GameUiState.initial(ref.read(setupProvider).names);
+  }
 
   /// Starts a fresh game with the names chosen on the setup screen.
   void newGame({List<String>? names}) {
     _generation++;
+    _backgrounded = false;
+    _adHold = false;
     state = GameUiState.initial(names ?? ref.read(setupProvider).names);
+    _newTurnClock();
     _maybePlayAi();
   }
 
   /// Handles a tap on board point [p] according to the current status.
   void tapPoint(int p) {
     final s = state;
-    if (s.status == GameStatus.animating ||
+    if (s.paused ||
+        s.status == GameStatus.animating ||
         s.status == GameStatus.aiThinking ||
+        s.status == GameStatus.autoPlaying ||
         s.status == GameStatus.gameOver) {
       return;
     }
@@ -251,7 +302,117 @@ class GameController extends Notifier<GameUiState> {
       status: GameStatus.awaitingInput,
       targets: placing ? s.game.emptyMask : 0,
     );
+    _newTurnClock();
     _maybePlayAi();
+  }
+
+  // --------------------------------------------------------------- clock
+
+  /// Full time for the next action (each placement / slide gets its own).
+  void _newTurnClock() {
+    ref.read(clockProvider.notifier).reset(ref.read(setupProvider).turnSeconds * 1000);
+    _syncClock(); // an expired clock could not restart before it was refilled
+  }
+
+  /// The countdown runs only while a human can act: never during animations,
+  /// AI thinking, auto-play, ads, a manual pause, or (vs AI only) while the
+  /// app is in the background.
+  void _syncClock() {
+    final s = state;
+    final aiSeat = ref.read(setupProvider).aiSeat;
+    final humansTurn = aiSeat != s.game.turn;
+    final acting = s.status == GameStatus.awaitingInput || s.status == GameStatus.capturePick;
+    final backgroundHold = _backgrounded && aiSeat != null;
+    ref
+        .read(clockProvider.notifier)
+        .setRunning(!s.game.isOver && humansTurn && acting && !s.paused && !backgroundHold && !_adHold);
+  }
+
+  /// Phone left the foreground / came back. Only pauses the clock vs the AI.
+  void setBackgrounded(bool value) {
+    _backgrounded = value;
+    _syncClock();
+  }
+
+  /// Rewarded ads hold the clock while they play (Stage 6).
+  void setAdHold(bool value) {
+    _adHold = value;
+    _syncClock();
+  }
+
+  /// Restores the full countdown for the current turn (rewind, Stage 6).
+  void refillClock() => ref.read(clockProvider.notifier).refill();
+
+  /// Manual pause. Returns false when the game has no pauses left or the
+  /// moment is wrong (mid-animation, AI thinking, game over).
+  bool pause() {
+    final s = state;
+    final ok = !s.paused &&
+        s.pausesUsed < maxPauses &&
+        (s.status == GameStatus.awaitingInput || s.status == GameStatus.capturePick);
+    if (!ok) return false;
+    state = s.copyWith(paused: true, pausesUsed: s.pausesUsed + 1);
+    return true;
+  }
+
+  void resume() {
+    if (state.paused) state = state.copyWith(paused: false);
+  }
+
+  /// Time ran out. First timeout: a basic (Easy-quality) legal move is played
+  /// for the seat, including which token to eat. Second: disqualified.
+  Future<void> _onTimeout() async {
+    final s = state;
+    if (s.game.isOver ||
+        (s.status != GameStatus.awaitingInput && s.status != GameStatus.capturePick)) {
+      return;
+    }
+    final seat = s.game.turn;
+    final counts = [...s.timeouts];
+    counts[seat]++;
+
+    if (counts[seat] >= 2) {
+      _generation++;
+      state = s.copyWith(
+        game: s.game.disqualify(seat),
+        status: GameStatus.gameOver,
+        selected: null,
+        targets: 0,
+        pendingStep: null,
+        captureMask: 0,
+        timeouts: counts,
+        timeoutSeat: seat,
+        timeoutSerial: s.timeoutSerial + 1,
+        timeoutDisqualified: true,
+      );
+      return;
+    }
+
+    final gen = _generation;
+    final pending = s.pendingStep;
+    state = s.copyWith(
+      status: GameStatus.autoPlaying,
+      selected: null,
+      targets: 0,
+      captureMask: 0,
+      timeouts: counts,
+      timeoutSeat: seat,
+      timeoutSerial: s.timeoutSerial + 1,
+    );
+
+    Move move;
+    try {
+      // deliberately Easy: a timeout must never hand out a Hard-quality move
+      move = await ref
+          .read(aiServiceProvider)
+          .chooseMove(s.game, AiConfig.easy.withTime(250), onlyStep: pending);
+    } catch (_) {
+      final legal = Rules.legalMoves(s.game);
+      move = legal.firstWhere((m) => pending == null || m.step == pending, orElse: () => legal.first);
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 450));
+    if (!ref.mounted || gen != _generation || state.status != GameStatus.autoPlaying) return;
+    _commit(move);
   }
 
   // ------------------------------------------------------------------ AI
@@ -275,6 +436,7 @@ class GameController extends Notifier<GameUiState> {
     }
     final gen = _generation;
     state = s.copyWith(status: GameStatus.aiThinking, targets: 0);
+    _newTurnClock();
 
     final started = DateTime.now();
     Move move;
