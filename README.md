@@ -33,9 +33,9 @@ Release builds, signing and the store listing: [docs/PLAY_STORE.md](docs/PLAY_ST
 ## Architecture
 
 ```
+packages/naw_tin_core/   shared pure-Dart engine + AI (used by the app and the online server)
 lib/
-  core/engine/   pure Dart rules: 24-bit bitmasks, immutable state, 48 swing patterns
-  core/ai/       negamax + alpha-beta, iterative deepening, Zobrist TT, hints, self-play
+  core/          re-export shims for packages/naw_tin_core (old import paths keep working)
   features/      splash, home, setup, game, how_to_play
   services/      clock, ads, sound, haptics, settings, stats, persistence
   theme/         design tokens (ThemeExtension), typography
