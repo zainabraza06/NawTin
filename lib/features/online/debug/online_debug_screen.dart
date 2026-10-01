@@ -23,6 +23,8 @@ class OnlineDebugScreen extends ConsumerStatefulWidget {
 
 class _OnlineDebugScreenState extends ConsumerState<OnlineDebugScreen> with WidgetsBindingObserver {
   final _code = TextEditingController();
+  late final TextEditingController _server =
+      TextEditingController(text: ref.read(debugServerProvider) ?? '');
   Timer? _tick;
   int? _selected;
 
@@ -41,6 +43,7 @@ class _OnlineDebugScreenState extends ConsumerState<OnlineDebugScreen> with Widg
     WidgetsBinding.instance.removeObserver(this);
     _tick?.cancel();
     _code.dispose();
+    _server.dispose();
     super.dispose();
   }
 
@@ -110,6 +113,20 @@ class _OnlineDebugScreenState extends ConsumerState<OnlineDebugScreen> with Widg
           padding: const EdgeInsets.all(12),
           children: [
             Text('server: $cfg', style: style),
+            row([
+              SizedBox(
+                width: 250,
+                child: TextField(
+                  controller: _server,
+                  decoration: const InputDecoration(labelText: 'server address (ws://PC-IP:8080/ws)', isDense: true),
+                  keyboardType: TextInputType.url,
+                ),
+              ),
+              FilledButton(
+                onPressed: () => ref.read(debugServerProvider.notifier).set(_server.text),
+                child: const Text('Use'),
+              ),
+            ]),
             Text('user: ${s.userId ?? '-'}   name: ${profile.name}', style: style),
             Text(
               'connection: ${s.conn.phase.name}'

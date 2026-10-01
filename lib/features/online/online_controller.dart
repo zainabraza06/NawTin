@@ -18,7 +18,32 @@ import 'online_state.dart';
 // providers
 // ----------------------------------------------------------------------------
 
-final onlineConfigProvider = Provider<OnlineConfig>((ref) => OnlineConfig.fromEnvironment());
+/// DEBUG BUILDS ONLY: a server address typed into the debug console (saved on
+/// the device), so one debug APK works on any network without a rebuild. In
+/// release builds this is always null.
+class DebugServerController extends Notifier<String?> {
+  static const _key = 'debug.server';
+
+  @override
+  String? build() {
+    if (!kDebugMode) return null;
+    final v = ref.read(prefsStoreProvider).read(_key);
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  void set(String? address) {
+    if (!kDebugMode) return;
+    final v = address?.trim();
+    ref.read(prefsStoreProvider).write(_key, v ?? '');
+    state = (v == null || v.isEmpty) ? null : v;
+  }
+}
+
+final debugServerProvider = NotifierProvider<DebugServerController, String?>(DebugServerController.new);
+
+final onlineConfigProvider = Provider<OnlineConfig>(
+  (ref) => OnlineConfig.fromEnvironment(override: ref.watch(debugServerProvider)),
+);
 final onlineTransportProvider = Provider<Transport>((ref) => const WebSocketTransport());
 final onlineSchedulerProvider = Provider<Scheduler>((ref) => const SystemScheduler());
 

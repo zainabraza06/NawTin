@@ -198,6 +198,27 @@ void main() {
     });
   });
 
+  group('debug server address', () {
+    test('a typed address is saved and becomes the server config (debug builds)', () async {
+      final store = MemoryPrefsStore();
+      final c = ProviderContainer(overrides: [prefsStoreProvider.overrideWithValue(store)]);
+      addTearDown(c.dispose);
+      expect(c.read(debugServerProvider), isNull);
+      c.read(debugServerProvider.notifier).set('ws://192.168.1.20:8080/ws');
+      expect(c.read(onlineConfigProvider).url!.host, '192.168.1.20');
+      expect(store.read('debug.server'), 'ws://192.168.1.20:8080/ws');
+      // it survives a restart
+      final c2 = ProviderContainer(overrides: [prefsStoreProvider.overrideWithValue(store)]);
+      addTearDown(c2.dispose);
+      expect(c2.read(onlineConfigProvider).url!.host, '192.168.1.20');
+      // an unsafe or empty value falls back safely
+      c2.read(debugServerProvider.notifier).set('http://nope');
+      expect(c2.read(onlineConfigProvider).isAvailable, isFalse);
+      c2.read(debugServerProvider.notifier).set('');
+      expect(c2.read(debugServerProvider), isNull);
+    });
+  });
+
   group('actions and guards', () {
     test('creating or joining while offline says so, nothing is sent', () async {
       final r = _Rig();
