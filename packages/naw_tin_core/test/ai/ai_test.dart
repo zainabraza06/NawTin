@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:nawtin/core/ai/ai.dart';
-import 'package:nawtin/core/engine/engine.dart';
+import 'package:test/test.dart';
+import 'package:naw_tin_core/naw_tin_core.dart';
 
 GameState st(
   List<int> a,

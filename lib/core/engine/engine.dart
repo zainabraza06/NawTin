@@ -1,11 +1,5 @@
-/// Pure-Dart Naw Tin rules engine (no Flutter imports).
-library;
+// Kept so existing imports (`package:nawtin/core/...`) keep working: the code now
+// lives in packages/naw_tin_core and is shared with the online server.
+// ignore_for_file: implementation_imports
 
-export 'analysis.dart';
-export 'bits.dart';
-export 'board.dart';
-export 'game_state.dart';
-export 'move.dart';
-export 'move_result.dart';
-export 'patterns.dart';
-export 'rules.dart';
+export 'package:naw_tin_core/src/engine/engine.dart';

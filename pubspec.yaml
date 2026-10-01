@@ -12,6 +12,9 @@ dependencies:
   audioplayers: ^6.8.1
   flutter:
     sdk: flutter
+  # shared rules engine + AI (also used by the online server)
+  naw_tin_core:
+    path: packages/naw_tin_core
   flutter_riverpod: ^3.4.3
   google_fonts: ^9.0.0
   google_mobile_ads: ^9.1.0

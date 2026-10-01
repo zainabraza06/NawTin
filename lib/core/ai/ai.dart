@@ -1,8 +1,5 @@
-/// Naw Tin AI: negamax + alpha-beta search over the pure-Dart rules engine.
-library;
+// Kept so existing imports (`package:nawtin/core/...`) keep working: the code now
+// lives in packages/naw_tin_core and is shared with the online server.
+// ignore_for_file: implementation_imports
 
-export 'ai_config.dart';
-export 'ai_service.dart';
-export 'evaluator.dart';
-export 'searcher.dart';
-export 'zobrist.dart';
+export 'package:naw_tin_core/src/ai/ai.dart';

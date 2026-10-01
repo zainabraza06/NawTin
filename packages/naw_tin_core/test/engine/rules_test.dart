@@ -1,7 +1,7 @@
 import 'dart:math';
 
-import 'package:flutter_test/flutter_test.dart';
-import 'package:nawtin/core/engine/engine.dart';
+import 'package:test/test.dart';
+import 'package:naw_tin_core/naw_tin_core.dart';
 
 /// Builds a position from point lists. `turn` is the seat to act.
 GameState st(

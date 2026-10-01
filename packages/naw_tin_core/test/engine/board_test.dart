@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:nawtin/core/engine/bits.dart';
-import 'package:nawtin/core/engine/board.dart';
+import 'package:test/test.dart';
+import 'package:naw_tin_core/naw_tin_core.dart';
 
 void main() {
   group('Board points', () {

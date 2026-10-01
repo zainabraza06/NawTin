@@ -1,6 +1,5 @@
-import 'package:flutter_test/flutter_test.dart';
-import 'package:nawtin/core/ai/ai.dart';
-import 'package:nawtin/core/ai/self_play.dart';
+import 'package:test/test.dart';
+import 'package:naw_tin_core/naw_tin_core.dart';
 
 void main() {
   test('Hard clearly beats Easy in self-play (both seats)', () {
