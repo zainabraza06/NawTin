@@ -138,6 +138,12 @@ class OnlineGameController extends Notifier<OnlineState> {
   StreamSubscription<ConnectionState>? _stateSub;
   int _eventSerial = 0;
 
+  /// A room we deliberately left: late messages about it are ignored.
+  String? _leftCode;
+
+  /// "Remove this saved game": join it, then leave as soon as it is attached.
+  String? _abandonCode;
+
   OnlineService get _service => ref.read(onlineServiceProvider);
   PrefsStore get _store => ref.read(prefsStoreProvider);
 
@@ -165,6 +171,7 @@ class OnlineGameController extends Notifier<OnlineState> {
 
   void createRoom() {
     if (!_requireOnline()) return;
+    _leftCode = null;
     _resetRoomView();
     _service.newRoom();
     _service.sendNow(Msg.createRoom);
@@ -177,6 +184,7 @@ class OnlineGameController extends Notifier<OnlineState> {
       state = state.copyWith(error: const OnlineError(ErrorCodes.roomNotFound, "That code doesn't look right."));
       return;
     }
+    _leftCode = null;
     if (code != state.roomCode) {
       _resetRoomView();
       _service.newRoom();
@@ -190,6 +198,7 @@ class OnlineGameController extends Notifier<OnlineState> {
     if (code == null) return;
     if (!_requireOnline()) return;
     // same room: keep the sequence counter, the server tells us where it is
+    _leftCode = null;
     _service.sendNow(Msg.joinRoom, {'code': code});
   }
 
@@ -226,6 +235,38 @@ class OnlineGameController extends Notifier<OnlineState> {
     if (state.room == null) return;
     _service.send(Msg.leave);
     _clearStoredRoom();
+  }
+
+  /// Leaves the room (lobby, finished game, or a live one: a live game is
+  /// forfeited) and returns the screen to the online menu.
+  void leaveRoom() {
+    final room = state.room;
+    if (room == null) return;
+    _leftCode = room.code;
+    _service.send(Msg.leave);
+    _clearStoredRoom();
+    _resetRoomView();
+    state = state.copyWith(events: const []);
+  }
+
+  /// "Remove" on the saved-game card. A game that is still running on the
+  /// server is forfeited, so the card asks first; this joins it and leaves.
+  void abandonSaved() {
+    final code = state.rejoinCode;
+    if (code == null) return;
+    if (!state.conn.isOnline) {
+      // nothing we can tell the server right now; the 45 s window will expire
+      _clearStoredRoom();
+      return;
+    }
+    _abandonCode = code;
+    _service.sendNow(Msg.joinRoom, {'code': code});
+  }
+
+  /// Dismisses a "room ended" / error message.
+  void clearRoomEnd() {
+    if (!ref.mounted) return; // a screen closing after the app is torn down
+    state = state.copyWith(roomEnd: null, error: null);
   }
 
   /// App lifecycle. Coming back reconnects at once; going away does nothing
@@ -309,6 +350,15 @@ class OnlineGameController extends Notifier<OnlineState> {
 
   void _onRoomState(Map<String, Object?> m) {
     final room = RoomView.fromJson(m);
+    if (room.code == _leftCode) return;
+    if (_abandonCode == room.code) {
+      _abandonCode = null;
+      _leftCode = room.code;
+      _service.send(Msg.leave);
+      _clearStoredRoom();
+      return;
+    }
+    if (_leftCode != null) _leftCode = null; // a different room: forget the old one
     var next = state.copyWith(room: room, roomEnd: null);
     final opp = room.opponentOf(state.userId);
     if (opp != null && opp.connected) next = next.copyWith(opponentReconnectDeadlineMs: null);
@@ -429,6 +479,7 @@ class OnlineGameController extends Notifier<OnlineState> {
     if (end == RoomEnd.notFound || end == RoomEnd.expired || end == RoomEnd.closed) {
       _clearStoredRoom();
     }
+    if (_abandonCode != null && end != null) _abandonCode = null; // it is already gone
     // a rejected move: drop the optimistic highlight, the server state stands
     state = state.copyWith(error: err, optimistic: null, roomEnd: end ?? state.roomEnd);
   }

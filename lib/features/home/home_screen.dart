@@ -7,6 +7,7 @@ import '../../theme/tokens.dart';
 import '../../widgets/aurora_background.dart';
 import '../../widgets/naw_button.dart';
 import '../../widgets/wordmark.dart';
+import '../online/widgets/rejoin_card.dart';
 import '../setup/game_setup.dart';
 import 'floating_tokens.dart';
 import 'settings_sheet.dart';
@@ -76,6 +77,7 @@ class HomeScreen extends ConsumerWidget {
                               .copyWith(letterSpacing: 1.4),
                         ),
                         const Spacer(flex: 3),
+                        const RejoinCard(),
                         NawButton(
                           label: 'Play vs AI',
                           caption: 'Easy, Medium or Hard',
@@ -90,6 +92,8 @@ class HomeScreen extends ConsumerWidget {
                           style: NawButtonStyle.secondary,
                           onPressed: () => open(GameMode.friend),
                         ),
+                        SizedBox(height: tk.space2),
+                        const PlayOnlineButton(),
                         SizedBox(height: tk.space2),
                         NawButton(
                           label: 'How to Play',

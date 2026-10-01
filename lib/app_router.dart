@@ -5,6 +5,8 @@ import 'features/game/game_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/online/debug/online_debug_screen.dart';
 import 'features/how_to_play/how_to_play_screen.dart';
+import 'features/online/screens/join_screen.dart';
+import 'features/online/screens/online_screen.dart';
 import 'features/setup/mode_setup_screen.dart';
 import 'features/splash/splash_screen.dart';
 
@@ -14,6 +16,10 @@ abstract final class Routes {
   static const setup = '/setup';
   static const game = '/game';
   static const how = '/how';
+
+  /// Online play: one route that shows the menu, lobby or game by state.
+  static const online = '/online';
+  static const onlineJoin = '/online/join';
 
   /// Developer console for the online layer. Debug builds only.
   static const onlineDebug = '/online-debug';
@@ -32,9 +38,11 @@ Widget? debugPageFor(String? name, {bool debugBuild = kDebugMode}) {
 }
 
 /// The screen for a route name.
-Widget pageFor(String? name, {bool debugBuild = kDebugMode}) =>
+Widget pageFor(String? name, {bool debugBuild = kDebugMode, Object? arguments}) =>
     debugPageFor(name, debugBuild: debugBuild) ??
     switch (name) {
+      Routes.online => OnlineScreen(rejoin: arguments == true),
+      Routes.onlineJoin => JoinScreen(initialCode: arguments is String ? arguments : null),
       Routes.home => const HomeScreen(),
       Routes.setup => const ModeSetupScreen(),
       Routes.game => const GameScreen(),
@@ -43,7 +51,7 @@ Widget pageFor(String? name, {bool debugBuild = kDebugMode}) =>
     };
 
 Route<dynamic> onGenerateRoute(RouteSettings settings) {
-  final Widget page = pageFor(settings.name);
+  final Widget page = pageFor(settings.name, arguments: settings.arguments);
   final fadeOnly = settings.name == Routes.home || settings.name == Routes.splash;
   return PageRouteBuilder<void>(
     settings: settings,

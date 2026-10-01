@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'app_router.dart';
+import 'features/online/online_controller.dart';
 import 'services/prefs_store.dart';
 import 'services/settings.dart';
 import 'theme/tokens.dart';
@@ -52,8 +53,35 @@ Future<void> main() async {
   ));
 }
 
-class NawTinApp extends StatelessWidget {
+class NawTinApp extends ConsumerStatefulWidget {
   const NawTinApp({super.key});
+
+  @override
+  ConsumerState<NawTinApp> createState() => _NawTinAppState();
+}
+
+class _NawTinAppState extends ConsumerState<NawTinApp> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /// Backgrounding or closing never leaves a room: the lifecycle only reaches
+  /// the connection layer, which treats it as a drop (the 45 s window). Only
+  /// forwarded once online play has been used, so offline play never touches it.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (ref.exists(onlineServiceProvider)) {
+      ref.read(onlineControllerProvider.notifier).onLifecycle(state);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
