@@ -1,4 +1,4 @@
-package com.yourname.nawtin
+package com.zainab.nawtin
 
 import io.flutter.embedding.android.FlutterActivity
 

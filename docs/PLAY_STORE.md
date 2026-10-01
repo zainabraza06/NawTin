@@ -8,7 +8,7 @@ here can be done for you from code.
 
 | | What | Where |
 |---|---|---|
-| **TODO (you)** | Pick the final **application id** (currently the placeholder `com.yourname.nawtin`). It can never change after the first upload. | `android/app/build.gradle.kts` (`namespace`, `applicationId`), `ios/` bundle id |
+| **TODO (you)** | Pick the final **application id** (currently the placeholder `com.zainab.nawtin`). It can never change after the first upload. | `android/app/build.gradle.kts` (`namespace`, `applicationId`), `ios/` bundle id |
 | **TODO (you)** | Create your own **AdMob app** + one *rewarded* ad unit. Replace the Google **test** ids. | Android app id: `android/app/src/main/AndroidManifest.xml` (`APPLICATION_ID`). iOS: `ios/Runner/Info.plist` (`GADApplicationIdentifier`). Ad unit ids: `lib/services/ads/admob_ads_service.dart` (`_androidUnit`, `_iosUnit`) |
 | **TODO (you)** | Publish a **privacy policy** URL (required because the app shows ads). | Play Console > App content |
 | Done | Launcher icon (adaptive + legacy), INTERNET and AD_ID permissions, app label `Naw Tin` | `assets/icon/`, manifest |

@@ -16,3 +16,7 @@ key.properties
 
 # library packages do not commit their lockfile
 packages/*/pubspec.lock
+
+# Firebase client config: keep out of version control (add it per machine / in CI)
+google-services.json
+GoogleService-Info.plist
