@@ -162,6 +162,15 @@ class OnlineError {
   final int? retryAfterMs;
 }
 
+/// The most recent emote either player sent (shown as a short-lived bubble).
+@immutable
+class EmoteView {
+  const EmoteView(this.serial, this.seat, this.id);
+  final int serial;
+  final int seat;
+  final String id;
+}
+
 /// Why a room is no longer usable (shown as its own designed state).
 enum RoomEnd { closed, expired, notFound, full }
 
@@ -182,6 +191,8 @@ class OnlineState {
     this.opponentReconnectDeadlineMs,
     this.pingMs = 0,
     this.offsetMs = 0,
+    this.lastEmote,
+    this.reported = false,
   });
 
   final ConnectionState conn;
@@ -208,6 +219,10 @@ class OnlineState {
   final int? opponentReconnectDeadlineMs;
   final int pingMs;
   final int offsetMs;
+  final EmoteView? lastEmote;
+
+  /// This game's report has been sent (one per game).
+  final bool reported;
 
   // ---- derived ----
   bool get outdated => conn.stopReason == StopReason.outdated;
@@ -234,6 +249,8 @@ class OnlineState {
     Object? opponentReconnectDeadlineMs = _keep,
     int? pingMs,
     int? offsetMs,
+    Object? lastEmote = _keep,
+    bool? reported,
   }) =>
       OnlineState(
         conn: conn ?? this.conn,
@@ -252,5 +269,7 @@ class OnlineState {
             : opponentReconnectDeadlineMs as int?,
         pingMs: pingMs ?? this.pingMs,
         offsetMs: offsetMs ?? this.offsetMs,
+        lastEmote: identical(lastEmote, _keep) ? this.lastEmote : lastEmote as EmoteView?,
+        reported: reported ?? this.reported,
       );
 }

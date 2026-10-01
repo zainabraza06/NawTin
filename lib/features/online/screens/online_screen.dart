@@ -9,6 +9,7 @@ import '../../../widgets/glass_panel.dart';
 import '../../../widgets/naw_button.dart';
 import '../online_controller.dart';
 import '../online_issue.dart';
+import '../online_messages.dart';
 import '../online_state.dart';
 import '../widgets/online_widgets.dart';
 import 'lobby_view.dart';
@@ -220,7 +221,7 @@ class _MenuView extends ConsumerWidget {
           SizedBox(height: tk.space2),
           Semantics(
             liveRegion: true,
-            child: Text(s.error!.message, textAlign: TextAlign.center, style: tk.body(NawTinTokens.scaleXS, color: tk.danger)),
+            child: Text(errorText(s.error!), textAlign: TextAlign.center, style: tk.body(NawTinTokens.scaleXS, color: tk.danger)),
           ),
         ],
         SizedBox(height: tk.space3),

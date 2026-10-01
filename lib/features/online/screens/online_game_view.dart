@@ -22,6 +22,8 @@ import '../../../widgets/player_card.dart';
 import '../../../widgets/timer_ring.dart';
 import '../../game/announcements.dart';
 import '../online_controller.dart';
+import '../online_messages.dart';
+import '../widgets/emote_widgets.dart';
 import '../online_state.dart';
 
 /// The live online game. It reuses the offline game's board, player cards,
@@ -45,6 +47,8 @@ class _OnlineGameViewState extends ConsumerState<OnlineGameView> {
   int _bannerSerial = 0;
   int _eventsHandled = 0;
   int _lastSecond = -1;
+  EmoteView? _bubble;
+  Timer? _bubbleTimer;
 
   void _sfx(Sfx s) => ref.read(soundServiceProvider).play(s);
 
@@ -63,6 +67,7 @@ class _OnlineGameViewState extends ConsumerState<OnlineGameView> {
   @override
   void dispose() {
     _tick?.cancel();
+    _bubbleTimer?.cancel();
     super.dispose();
   }
 
@@ -134,6 +139,27 @@ class _OnlineGameViewState extends ConsumerState<OnlineGameView> {
         _sfx(Sfx.machyas);
         Haptics.heavy();
       }
+    }
+    // an emote from either player (unless emotes are hidden)
+    final em = next.lastEmote;
+    if (em != null && em.serial != prev?.lastEmote?.serial && !ref.read(hideEmotesProvider)) {
+      setState(() => _bubble = em);
+      _bubbleTimer?.cancel();
+      _bubbleTimer = Timer(const Duration(milliseconds: 2800), () {
+        if (mounted) setState(() => _bubble = null);
+      });
+      if (em.seat != next.mySeat) Haptics.light();
+    }
+    // a refused action: say why, in words
+    final err = next.error;
+    if (err != null && err != prev?.error && err.code != ErrorCodes.seqGap) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          behavior: SnackBarBehavior.floating,
+          duration: const Duration(seconds: 3),
+          content: Text(errorText(err)),
+        ));
     }
     // turn changed to me: nudge
     if (prev != null && !prev.myTurn && next.myTurn) Haptics.light();
@@ -315,6 +341,20 @@ class _OnlineGameViewState extends ConsumerState<OnlineGameView> {
                                           accent: activeSeat == mySeat ? tk.violet : tk.aqua,
                                         ),
                                       ),
+                                      if (!ref.watch(hideEmotesProvider) && !g.isOver)
+                                        Semantics(
+                                          button: true,
+                                          label: 'Emotes',
+                                          child: InkResponse(
+                                            onTap: () => showEmoteSheet(context),
+                                            radius: 28,
+                                            child: SizedBox(
+                                              width: 48,
+                                              height: 48,
+                                              child: Icon(Icons.emoji_emotions_outlined, color: tk.textMuted),
+                                            ),
+                                          ),
+                                        ),
                                       Semantics(
                                         button: true,
                                         label: 'Leave game',
@@ -412,6 +452,11 @@ class _OnlineGameViewState extends ConsumerState<OnlineGameView> {
                 ),
               ),
             ),
+            if (_bubble != null && emoteSpec(_bubble!.id) != null)
+              Align(
+                alignment: Alignment(0, _bubble!.seat == mySeat ? 0.62 : -0.66),
+                child: EmoteBubble(spec: emoteSpec(_bubble!.id)!, fromYou: _bubble!.seat == mySeat),
+              ),
             CallBannerOverlay(items: _banners, serial: _bannerSerial),
             // our own connection trouble, or the opponent's: the game is held, never forfeited
             if (!s.conn.isOnline || opponentAway)
@@ -603,6 +648,23 @@ class _GameOverPanel extends ConsumerWidget {
                       SizedBox(height: tk.space3),
                       NawButton(label: rematchLabel, icon: Icons.replay_rounded, onPressed: rematchTap),
                       SizedBox(height: tk.space1),
+                      if (opp != null)
+                        TextButton.icon(
+                          key: const ValueKey('report-button'),
+                          onPressed: state.reported
+                              ? null
+                              : () async {
+                                  final reason = await showReportSheet(context, opp.name);
+                                  if (reason == null || !context.mounted) return;
+                                  if (ctl.report(reason)) {
+                                    ScaffoldMessenger.of(context)
+                                      ..hideCurrentSnackBar()
+                                      ..showSnackBar(const SnackBar(content: Text('Thanks, your report was sent.')));
+                                  }
+                                },
+                          icon: Icon(state.reported ? Icons.check_rounded : Icons.flag_outlined, size: 18),
+                          label: Text(state.reported ? 'Reported' : 'Report ${opp.name}'),
+                        ),
                       NawButton(
                         label: 'Home',
                         style: NawButtonStyle.secondary,

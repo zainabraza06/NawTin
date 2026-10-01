@@ -125,6 +125,45 @@ void main() {
       expect(b.events(EventKind.emote).length, lessThanOrEqualTo(6));
     });
 
+    test('a rate-limited emote is dropped for good: it uses up its number and is never resent', () async {
+      final env = TestEnv();
+      final (a, b) = await env.startedGame();
+      await a.send(Msg.emote, {'id': 'nice_one'});
+      await a.send(Msg.emote, {'id': 'oops'}); // too soon: dropped
+      final limited = a.errors().last;
+      expect(limited['code'], ErrorCodes.rateLimited);
+      expect(limited.containsKey('ref'), isFalse, reason: 'no ref: the client must not resend it');
+      expect(a.ofType('ack'), isNotEmpty, reason: 'its number counts as processed');
+      // the very next message is accepted in order (no seq_gap, no stall)
+      await a.send(Msg.offerRematch);
+      expect(a.lastErrorCode, ErrorCodes.rematchUnavailable, reason: 'a normal error, not seq_gap');
+      expect(b.events(EventKind.emote).length, 1);
+    });
+
+    test('reports: only the other player, only known reasons, once per game', () async {
+      final env = TestEnv();
+      final (a, b) = await env.startedGame();
+      final code = a.code!;
+      await a.send(Msg.report, {'userId': 'nobody', 'reason': 'afk'});
+      expect(a.lastErrorCode, ErrorCodes.badRequest, reason: 'not in this room');
+      await a.send(Msg.report, {'userId': a.uid, 'reason': 'afk'});
+      expect(a.lastErrorCode, ErrorCodes.badRequest, reason: 'cannot report yourself');
+      await a.send(Msg.report, {'userId': b.uid, 'reason': 'because i said so'});
+      expect(a.lastErrorCode, ErrorCodes.badRequest, reason: 'unknown reason (no free text)');
+      expect(env.roomOf(code).reports, isEmpty);
+
+      await a.send(Msg.report, {'userId': b.uid, 'reason': 'abusive_name'});
+      await a.send(Msg.report, {'userId': b.uid, 'reason': 'cheating'}); // second one this game: ignored
+      final reports = env.roomOf(code).reports;
+      expect(reports, hasLength(1));
+      expect(reports.single.reporter, a.uid);
+      expect(reports.single.reported, b.uid);
+      expect(reports.single.reason, 'abusive_name');
+      // the other player can report too
+      await b.send(Msg.report, {'userId': a.uid, 'reason': 'afk'});
+      expect(env.roomOf(code).reports, hasLength(2));
+    });
+
     test('connections per IP: 20 per minute, then refused with 4003', () async {
       final env = TestEnv();
       final chans = <FakeChannel>[];

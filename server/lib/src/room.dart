@@ -276,6 +276,19 @@ class Room {
     }
   }
 
+  /// Throws away a sequenced message that was rate limited but must not be
+  /// retried (an emote). In the normal case (the next number) the number is
+  /// consumed and acknowledged; a duplicate or a gap is handled as usual.
+  void discard(RoomPlayer p, Map<String, Object?> m) {
+    final seq = m['seq'];
+    if (seq is int && seq == p.lastSeq + 1) {
+      p.lastSeq = seq;
+      _to(p, {'t': Msg.ack});
+      return;
+    }
+    receive(p, Msg.emote, m); // duplicate / gap / missing number: the usual handling
+  }
+
   void _dispatch(RoomPlayer p, String type, Map<String, Object?> m) {
     if (status == RoomStatus.closed) throw RoomError(ErrorCodes.roomClosed, 'That room has closed.');
     switch (type) {
@@ -308,7 +321,7 @@ class Room {
       case Msg.leave:
         _leave(p);
       case Msg.report:
-        log('report.received', {'room': code, 'reporter': p.userId, 'reported': '${m['userId']}', 'reason': '${m['reason']}'});
+        _report(p, m);
       default:
         throw RoomError(ErrorCodes.badRequest, 'Unknown message.');
     }
@@ -345,6 +358,7 @@ class Room {
     }
     _coinFlipSeat0 = players.firstWhere((p) => p.seat == 0).userId;
     game = GameState.initial();
+    _reportedThisGame.clear();
     _pending = null;
     timeouts = [0, 0];
     eaten = [0, 0];
@@ -615,6 +629,28 @@ class Room {
       case RoomStatus.closed:
         break;
     }
+  }
+
+  /// Reasons a player can give when reporting the other player.
+  static const reportReasons = {'afk', 'abusive_name', 'cheating', 'other'};
+
+  /// Reports recorded in this room (also written to the log). One per reporter
+  /// per game; there is no automated action.
+  final List<({String reporter, String reported, String reason, DateTime time})> reports = [];
+  final Set<String> _reportedThisGame = {};
+
+  void _report(RoomPlayer p, Map<String, Object?> m) {
+    final reason = m['reason'];
+    final target = m['userId'];
+    if (reason is! String || !reportReasons.contains(reason)) {
+      throw RoomError(ErrorCodes.badRequest, 'Pick a reason for the report.');
+    }
+    // you can only report someone who shared this room with you
+    final other = target is String ? players.where((q) => q.userId == target && q.userId != p.userId) : const <RoomPlayer>[];
+    if (other.isEmpty) throw RoomError(ErrorCodes.badRequest, 'You can only report the other player in this room.');
+    if (!_reportedThisGame.add(p.userId)) return; // already reported this game: quietly accepted
+    reports.add((reporter: p.userId, reported: other.first.userId, reason: reason, time: clock.now()));
+    log('report.received', {'room': code, 'reporter': p.userId, 'reported': other.first.userId, 'reason': reason});
   }
 
   void _offerRematch(RoomPlayer p) {

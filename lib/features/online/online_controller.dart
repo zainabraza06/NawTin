@@ -103,6 +103,21 @@ class OnlineProfileController extends Notifier<OnlineProfile> {
 
 final onlineProfileProvider = NotifierProvider<OnlineProfileController, OnlineProfile>(OnlineProfileController.new);
 
+/// "Hide emotes": a local choice. Hidden emotes are neither shown nor can be sent.
+class HideEmotesController extends Notifier<bool> {
+  static const _key = 'online.hideEmotes';
+
+  @override
+  bool build() => ref.read(prefsStoreProvider).read(_key) == '1';
+
+  void set(bool hide) {
+    ref.read(prefsStoreProvider).write(_key, hide ? '1' : '0');
+    state = hide;
+  }
+}
+
+final hideEmotesProvider = NotifierProvider<HideEmotesController, bool>(HideEmotesController.new);
+
 const _roomKey = 'online.room';
 
 /// The saved room id, or null (an empty string is how a cleared one is stored).
@@ -224,7 +239,48 @@ class OnlineGameController extends Notifier<OnlineState> {
   }
 
   void pressPhutas() => _service.send(Msg.pressPhutas);
-  void emote(String id) => _service.send(Msg.emote, {'id': id});
+  // ---- emotes: presets only, with a courtesy cooldown matching the server's
+  // limits (1 per 3 s, 6 per minute), so a well-behaved client never trips them.
+  final List<DateTime> _emoteTimes = [];
+  static const emoteGap = Duration(seconds: 3);
+  static const emotesPerMinute = 6;
+
+  /// How long until another emote may be sent (zero = now).
+  Duration emoteWait() {
+    final now = ref.read(onlineSchedulerProvider).now();
+    _emoteTimes.removeWhere((t) => now.difference(t) >= const Duration(minutes: 1));
+    var wait = Duration.zero;
+    if (_emoteTimes.isNotEmpty) {
+      final sinceLast = now.difference(_emoteTimes.last);
+      if (sinceLast < emoteGap) wait = emoteGap - sinceLast;
+    }
+    if (_emoteTimes.length >= emotesPerMinute) {
+      final free = _emoteTimes.first.add(const Duration(minutes: 1)).difference(now);
+      if (free > wait) wait = free;
+    }
+    return wait;
+  }
+
+  /// Sends a preset emote. Returns false (and sends nothing) while cooling down
+  /// or for an id that is not a preset.
+  bool emote(String id) {
+    if (!emoteIds.contains(id) || !state.inGame || emoteWait() > Duration.zero) return false;
+    _emoteTimes.add(ref.read(onlineSchedulerProvider).now());
+    _service.send(Msg.emote, {'id': id});
+    return true;
+  }
+
+  /// Reports the other player after a game. [reason] is one of `afk`,
+  /// `abusive_name`, `cheating`, `other` (no free text). Once per game.
+  bool report(String reason) {
+    final other = state.opponent;
+    if (other == null || state.reported || !reportReasons.contains(reason)) return false;
+    _service.send(Msg.report, {'userId': other.userId, 'reason': reason});
+    state = state.copyWith(reported: true);
+    return true;
+  }
+
+  static const reportReasons = {'afk', 'abusive_name', 'cheating', 'other'};
   void offerRematch() => _service.send(Msg.offerRematch);
   void acceptRematch() => _service.send(Msg.acceptRematch);
 
@@ -303,7 +359,8 @@ class OnlineGameController extends Notifier<OnlineState> {
   }
 
   void _resetRoomView() {
-    state = state.copyWith(room: null, game: null, error: null, roomEnd: null, optimistic: null, lastResult: null, opponentReconnectDeadlineMs: null);
+    _emoteTimes.clear();
+    state = state.copyWith(room: null, game: null, error: null, roomEnd: null, optimistic: null, lastResult: null, opponentReconnectDeadlineMs: null, lastEmote: null, reported: false);
   }
 
   // ------------------------------------------------------------- incoming
@@ -360,6 +417,9 @@ class OnlineGameController extends Notifier<OnlineState> {
     }
     if (_leftCode != null) _leftCode = null; // a different room: forget the old one
     var next = state.copyWith(room: room, roomEnd: null);
+    if (room.status == 'playing' && state.room?.status != 'playing') {
+      next = next.copyWith(reported: false, lastEmote: null); // a new game
+    }
     final opp = room.opponentOf(state.userId);
     if (opp != null && opp.connected) next = next.copyWith(opponentReconnectDeadlineMs: null);
     state = next;
@@ -455,6 +515,12 @@ class OnlineGameController extends Notifier<OnlineState> {
         next = next.copyWith(opponentReconnectDeadlineMs: data['reconnectDeadline'] as int?);
       case EventKind.reconnected:
         next = next.copyWith(opponentReconnectDeadlineMs: null);
+      case EventKind.emote:
+        final id = data['id'];
+        final seat = (data['seat'] as int?) ?? m['seat'] as int?;
+        if (id is String && emoteIds.contains(id) && seat != null) {
+          next = next.copyWith(lastEmote: EmoteView(ev.serial, seat, id));
+        }
       case EventKind.gameOver:
         _clearStoredRoom();
         next = next.copyWith(rejoinCode: null);

@@ -122,14 +122,9 @@ tablet-ready (capture them from a tablet emulator).
 - **Content rating (IARC questionnaire):** abstract strategy game, no violence,
   no user-generated content, no chat. Expect an "Everyone" style rating; answer
   the ads question truthfully.
-- **Data safety:**
-  - Data collected: *Device or other IDs* (advertising id, via the AdMob SDK),
-    used for advertising. Shared with Google AdMob.
-  - No account, no location, no contacts, no analytics of your own.
-  - Game settings, names typed for two-player and statistics are stored **only on
-    the device**.
-  - Data is encrypted in transit (AdMob). Deletion: uninstalling removes local
-    data.
+- **Data safety:** see [store_checklist.md](store_checklist.md). Online play adds
+  an anonymous user id and a display name sent to our server, so the answers
+  there replace the ads-only answers that used to be here.
 - **Advertising ID declaration:** yes (the manifest declares
   `com.google.android.gms.permission.AD_ID`).
 - **Government / financial / health apps:** none of these apply.

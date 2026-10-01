@@ -6,6 +6,7 @@ import 'package:naw_tin_core/naw_tin_core.dart';
 import '../../../theme/tokens.dart';
 import '../../../widgets/naw_button.dart';
 import '../online_controller.dart';
+import '../online_messages.dart';
 import '../online_state.dart';
 import '../widgets/online_widgets.dart';
 
@@ -89,12 +90,7 @@ class _JoinScreenState extends ConsumerState<JoinScreen> {
     }
     final err = s.error;
     if (err != null) {
-      return switch (err.code) {
-        ErrorCodes.rateLimited => 'Too many tries. Wait a moment, then try again.',
-        ErrorCodes.alreadyInRoom => 'You are already in a game. Go back to rejoin it.',
-        'not_connected' => "You're not connected to the server yet.",
-        _ => err.message,
-      };
+      return errorText(err);
     }
     return null;
   }

@@ -9,16 +9,19 @@ Console (App content > Privacy policy).*
 **Developer:** [YOUR NAME OR COMPANY], [COUNTRY]
 **Contact:** [YOUR EMAIL ADDRESS]
 
-Naw Tin ("the app") is a board game you can play against the computer or with a
-friend on one device. This policy explains what information the app uses.
+Naw Tin ("the app") is a board game you can play against the computer, with a
+friend on one device, or **online with a friend in a private room**. This policy
+explains what information the app uses.
 
 ## Information we do not collect
 
-- The app has **no accounts** and no sign-in.
-- We do **not** collect your name, email address, phone number, contacts,
-  photos, files, precise or approximate location, or microphone or camera data.
-- We do **not** run our own servers, analytics or tracking for the app.
-- We do not sell your information.
+- The app has **no accounts to create** and no login screen.
+- We do **not** collect your email address, phone number, contacts, photos,
+  files, precise or approximate location, or microphone or camera data.
+- We do not run analytics or tracking for the app, and we do not sell your
+  information.
+- Offline play (against the computer, or two players on one phone) sends nothing
+  to us at all.
 
 ## Information stored on your device
 
@@ -30,7 +33,41 @@ The app saves the following **only on your device**. It is never sent to us:
 - your game statistics (for example wins, losses and tokens eaten).
 
 You can clear the statistics in the app, and all of this data is removed when you
-uninstall the app.
+uninstall the app. Your online display name is also saved on your phone, and the
+server only holds it while you are in a room.
+
+## Online play (private rooms)
+
+Online play is optional. When you open it, the app connects to our game server
+(hosted on Google Cloud) so you and a friend can play in a private room. For this:
+
+- **An anonymous identifier.** The first time you play online, Firebase
+  Authentication creates an anonymous ID for your installation. It is not linked
+  to your name, email or phone, and you never type a password. We use it to tell
+  the two players of a room apart and to reconnect you if your connection drops.
+  Clearing the app's data or uninstalling the app removes it from your phone.
+- **Your display name.** You choose it (or keep the generated one). It is shown to
+  the other player in your room. Please do not use your real full name or
+  anything personal. Names are filtered, and offensive names can be reported.
+- **Game activity.** The moves you make, the room code and the preset emotes you
+  send are processed by the server while the game is going on, so it can run the
+  game and keep it fair. A room is deleted from the server's memory when it
+  ends or expires (a waiting room after 10 minutes). We do not keep game
+  histories.
+- **Short-lived technical logs.** The server writes logs with your anonymous ID,
+  the room, the type of action and error codes, to find and fix problems and to
+  review reports. They contain no names and no message text. Google Cloud's
+  infrastructure also records IP addresses in its request logs, as for any
+  online service, [LOG RETENTION: set and state the period, for example 30 days].
+- **Reports.** If a player reports another, the log entry records the room, both
+  anonymous IDs, the reason you picked from a list, and the time. Reports are
+  reviewed by hand.
+- **No chat.** There is no free-text chat. Players can only send a few preset
+  phrases ("Nice one", "Good game", ...), and you can hide emotes at any time.
+
+These services process this data for us: **Google Firebase Authentication** and
+**Google Cloud Run** (see Google's privacy policy below). The connection to the
+server is encrypted. There are **no ads during an online game**.
 
 ## Advertising
 
@@ -62,9 +99,16 @@ requests are sent over encrypted connections by the ad SDK.
 
 ## Your choices and rights
 
-Because we do not collect or hold your personal information, there is nothing
-for us to access, correct or delete. For data held by Google, use Google's own
-privacy controls linked above.
+- You can change your online name at any time, hide emotes, and stop using
+  online play whenever you like.
+- Uninstalling the app (or clearing its data) removes your anonymous online
+  identity from your phone; a new one is created if you play online again. We
+  cannot link an anonymous ID back to a person, so we cannot look you up. If you
+  want us to delete what we hold about an ID (for example log entries), contact
+  us and we will help as far as that is technically possible.
+- Because we hold no name, email or phone number for you, there is little else for
+  us to access or correct. For data held by Google, use Google's own privacy
+  controls linked above.
 
 ## Changes to this policy
 

@@ -9,6 +9,7 @@ import '../../../theme/tokens.dart';
 import '../../../widgets/glass_panel.dart';
 import '../../../widgets/naw_button.dart';
 import '../online_controller.dart';
+import '../online_messages.dart';
 import '../online_state.dart';
 
 /// The text a share sends. The code is in the message, so it works from any
@@ -167,7 +168,7 @@ class _LobbyViewState extends ConsumerState<LobbyView> {
           SizedBox(height: tk.space2),
           Semantics(
             liveRegion: true,
-            child: Text(s.error!.message, textAlign: TextAlign.center, style: tk.body(NawTinTokens.scaleXS, color: tk.danger)),
+            child: Text(errorText(s.error!), textAlign: TextAlign.center, style: tk.body(NawTinTokens.scaleXS, color: tk.danger)),
           ),
         ],
         SizedBox(height: tk.space2),

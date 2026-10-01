@@ -308,7 +308,11 @@ class NawTinServer {
             return;
           }
           if (t == Msg.emote && !_emoteAllowed(user.uid)) {
-            _send(s, _errorMsg(ErrorCodes.rateLimited, 'Easy on the emotes.', ref: m['seq'], retryAfterMs: 3000));
+            // An emote is never worth delaying a move for: drop it for good.
+            // Its sequence number is used up (so the queue behind it flows) and
+            // the error carries no `ref`, so the client does not resend it.
+            room.discard(player, m);
+            _send(s, _errorMsg(ErrorCodes.rateLimited, 'Easy on the emotes.', retryAfterMs: 3000));
             return;
           }
           room.receive(player, t, m);

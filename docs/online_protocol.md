@@ -148,7 +148,7 @@ Mobile networks drop and retry, so every **room-level** client message carries a
 | `offer_rematch` | `{}` | after `game_over` |
 | `accept_rematch` | `{}` | answers the opponent's offer |
 | `leave` | `{}` | the explicit Leave button only: leaves the lobby, or **instantly forfeits** a live game |
-| `report` | `{ "userId": "...", "reason": "afk" }` | after a game (Stage 5) |
+| `report` | `{ "userId": "...", "reason": "afk" }` | the other player in the room; reason is one of `afk`, `abusive_name`, `cheating`, `other` (section 9); once per game |
 | `ping` | `{ "n": 123, "rtt": 42 }` | heartbeat every 15 s; unsequenced. `n` is echoed; `rtt` (optional) is the client's last measured round trip, shown to the opponent as a ping indicator |
 
 ### Placement and movement are two-step when a line is made
@@ -202,7 +202,7 @@ human-readable English meant to be shown as-is (clients may localise by `code`).
 | `capture_pending` | a new step while a capture is awaited |
 | `game_not_active` | the game is over or not started |
 | `seq_gap` | missed messages; a resync follows |
-| `rate_limited` | includes `retryAfterMs` |
+| `rate_limited` | includes `retryAfterMs`. Carries `ref` (the message's `seq`) when the message was **not** processed and its number is free to resend. A rate-limited **emote** has no `ref`: it is dropped for good, its number is consumed and acknowledged, and the client must not resend it |
 | `name_invalid` | rejected display name |
 | `emote_unknown` | not a preset id |
 | `rematch_unavailable` | no offer to accept |
@@ -388,7 +388,12 @@ serverNow = clientNow + offset
 
 * **No free text in play.** Chat does not exist. `emote` accepts only these ids:
   `machyas`, `nice_one`, `oops`, `good_game`, `thinking`, `thanks`.
-  Rate limit: 1 per 3 s, at most 6 per minute, per user.
+  Rate limit: 1 per 3 s, at most 6 per minute, per user. A limited emote is
+  **discarded, never queued**: it must not hold up moves behind it or arrive late.
+  The `seq` it used is consumed and answered with `ack`, then a `rate_limited`
+  error **without `ref`** tells the client to show "easy on the emotes". The app
+  also keeps its own cooldown so a normal player never sees this.
+  Players can hide emotes locally ("Hide emotes"): none are shown or sent.
 * **Display names:** 2-16 characters, letters/digits/space/`_`/`-` only, trimmed,
   no leading/trailing or doubled spaces, profanity filtered (the server holds the
   list and normalises look-alikes such as `0`->`o`). Rejection: `name_invalid`.
@@ -407,8 +412,11 @@ serverNow = clientNow + offset
 * **The server never trusts client state.** Clients send only intentions; the
   server rebuilds every position from its own engine state.
 * **Reports:** `report { userId, reason }` (`afk`, `abusive_name`, `cheating`,
-  `other`) records `{ roomId, reportedUserId, reporterUserId, reason, time }`.
-  No automated action in phase 1.
+  `other`; anything else is `bad_request`, so there is no free text) records
+  `{ roomId, reportedUserId, reporterUserId, reason, time }` in the structured
+  log (`report.received`). Only the **other player in the same room** can be
+  reported, once per reporter per game (a rematch starts a new game). No
+  automated action in phase 1: reports are reviewed by hand.
 * **Logging:** structured logs with the anonymous `userId`, room id, message
   type, error code and timing only: no IP addresses in application logs (the
   platform's request log handles those), no names, no IDs beyond the Firebase
