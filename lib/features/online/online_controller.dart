@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:naw_tin_core/naw_tin_core.dart';
 
 import '../../services/online/auth_provider.dart';
+import '../../services/online/firebase_auth_provider.dart';
 import '../../services/online/online_config.dart';
 import '../../services/online/online_service.dart';
 import '../../services/online/transport.dart';
@@ -50,8 +51,17 @@ final onlineSchedulerProvider = Provider<Scheduler>((ref) => const SystemSchedul
 /// The sign-in used for online play. Debug builds get the fake-token path (for
 /// a server in test mode); release builds get [UnavailableAuth] until Firebase
 /// sign-in is wired in.
+/// Debug builds use the fake test token unless built with
+/// `--dart-define=NAWTIN_REAL_AUTH=1`; release builds always use Firebase.
+const _realAuthInDebug = bool.fromEnvironment('NAWTIN_REAL_AUTH');
+
 final onlineAuthProvider = Provider<AuthTokenProvider>(
-  (ref) => createAuth(debug: kDebugMode, store: ref.read(prefsStoreProvider), random: Random()),
+  (ref) => createAuth(
+    debug: kDebugMode,
+    store: ref.read(prefsStoreProvider),
+    random: Random(),
+    real: (!kDebugMode || _realAuthInDebug) ? FirebaseAuthProvider() : null,
+  ),
 );
 
 /// Display name + avatar for online play, saved on the device.
