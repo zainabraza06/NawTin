@@ -100,7 +100,7 @@ is kept.
 
 | code | meaning |
 |---|---|
-| 1001 | server going away (deploy); reconnect with backoff |
+| 4004 | server restarting (a deploy); reconnect with backoff. (Not 1001: WebSocket libraries only let applications send 1000 or 3000-4999.) |
 | 4000 | outdated client |
 | 4001 | unauthorized / handshake timeout / bad token |
 | 4002 | replaced by a newer connection |

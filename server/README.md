@@ -31,7 +31,7 @@ so a deployed server can never accept fake tokens.
 | variable | meaning | default |
 |---|---|---|
 | `PORT` | listen port (Cloud Run sets it) | `8080` |
-| `FIREBASE_PROJECT_ID` | Firebase project whose ID tokens are accepted (required unless test auth) | - |
+| `FIREBASE_PROJECT_ID` | Firebase project whose ID tokens are accepted (required unless test auth); this app: `nawtin-41c14` | - |
 | `NAWTIN_TEST_AUTH` | `1` accepts `test:<uid>` tokens (local development only) | off |
 | `NAWTIN_TURN_SECONDS` | per-turn clock | `120` |
 | `NAWTIN_RECONNECT_SECONDS` | reconnect window | `45` |
@@ -48,7 +48,7 @@ dart pub get
 dart test
 ```
 
-87 tests cover: room lifecycle and codes, expiry, illegal-move rejection, the
+88 tests cover: room lifecycle and codes, expiry, illegal-move rejection, the
 two-step capture (protected tokens), the server clock, first and second timeouts
 (including a pending capture), reconnects and the 45 s window, instant forfeit on
 Leave, duplicate / out-of-order messages, rematch seat swaps, auth (including real

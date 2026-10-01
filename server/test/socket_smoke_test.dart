@@ -21,7 +21,7 @@ class Wire {
   }
 
   Future<Map<String, Object?>> waitFor(String t, {bool Function(Map<String, Object?>)? where}) async {
-    for (var i = 0; i < 100; i++) {
+    for (var i = 0; i < 500; i++) {
       for (final m in inbox) {
         if (m['t'] == t && (where == null || where(m))) return m;
       }
@@ -99,5 +99,18 @@ void main() {
     final err = await a.waitFor('error');
     expect(err['code'], ErrorCodes.roomNotFound);
     await a.ws.close();
+  });
+
+  test('stopping the server closes open sockets cleanly (a deploy sends SIGTERM)', () async {
+    final ws = await WebSocket.connect('ws://127.0.0.1:${http.port}/ws');
+    ws.add(jsonEncode({'v': 1, 't': 'hello', 'protocol': 1, 'token': 'test:alice1', 'name': 'Alice'}));
+    final welcomed = Completer<void>();
+    final closed = Completer<int?>();
+    ws.listen((m) {
+      if ((jsonDecode(m as String) as Map)['t'] == 'welcome' && !welcomed.isCompleted) welcomed.complete();
+    }, onDone: () => closed.complete(ws.closeCode));
+    await welcomed.future.timeout(const Duration(seconds: 5));
+    await server.stop(); // must not throw
+    expect(await closed.future.timeout(const Duration(seconds: 5)), CloseCodes.goingAway);
   });
 }

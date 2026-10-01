@@ -12,7 +12,6 @@ import 'package:web_socket_channel/web_socket_channel.dart';
 import 'auth.dart';
 import 'clock.dart';
 import 'config.dart';
-import 'names.dart';
 import 'rate_limiter.dart';
 import 'room.dart';
 
@@ -41,7 +40,14 @@ class SocketChannel implements ClientChannel {
   void send(String data) => _ch.sink.add(data);
 
   @override
-  Future<void> close(int code, String reason) => _ch.sink.close(code, reason);
+  Future<void> close(int code, String reason) async {
+    try {
+      await _ch.sink.close(code, reason);
+    } catch (_) {
+      // already closed, or the platform refused the code: never let a close
+      // failure break shutdown or another player's game
+    }
+  }
 }
 
 /// Tracks live rooms, who is in which, and recently expired codes.
