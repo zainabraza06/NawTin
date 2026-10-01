@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../app_router.dart';
 import '../../services/settings.dart';
 import '../../theme/tokens.dart';
 import '../../widgets/glass_panel.dart';
@@ -65,6 +67,16 @@ class _SettingsSheet extends ConsumerWidget {
                   value: s.lowPower,
                   onChanged: c.setLowPower,
                 ),
+                if (kDebugMode)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.bug_report_outlined),
+                    title: const Text('Online test console (debug)'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      Navigator.of(context).pushNamed(Routes.onlineDebug);
+                    },
+                  ),
                 SizedBox(height: tk.space2),
                 Text('Language', style: tk.heading(NawTinTokens.scaleS)),
                 const SizedBox(height: 8),
