@@ -28,31 +28,32 @@ final class AiConfig {
   /// Extend capture sequences past the horizon.
   final bool quiesce;
 
-  /// Depth 2. Completes lines and blocks one-move threats, cannot see
-  /// begi/treghi.
+  /// Depth 3. Completes lines, blocks one-move threats and sees a reply
+  /// ahead, but cannot see begi/treghi.
   static const easy = AiConfig(
     name: 'Easy',
-    maxDepth: 2,
+    maxDepth: 3,
     timeMs: 500,
     seesSwings: false,
     avoidRepeat: false,
     quiesce: false,
   );
 
-  /// Depth 4. Also blocks a forming begi and plans simple two-line setups.
+  /// Depth 6. Also blocks a forming begi and plans two-line setups.
   static const medium = AiConfig(
     name: 'Medium',
-    maxDepth: 4,
-    timeMs: 1500,
+    maxDepth: 6,
+    timeMs: 2000,
     seesSwings: true,
     avoidRepeat: false,
     quiesce: true,
   );
 
-  /// Depth 6. Builds begi/treghi deliberately, even during placement.
+  /// Depth 9 (time permitting; slower phones stop a ply or two earlier).
+  /// Builds begi/treghi deliberately, even during placement.
   static const hard = AiConfig(
     name: 'Hard',
-    maxDepth: 6,
+    maxDepth: 9,
     timeMs: 3000,
     seesSwings: true,
     avoidRepeat: true,

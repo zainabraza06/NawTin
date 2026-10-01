@@ -123,7 +123,7 @@ void main() {
       final s = st([0, 2, 9], [20, 22, 13], hand0: 4, hand1: 4);
       final easy = find(s, AiConfig.easy.withTime(2000));
       final hard = find(s, AiConfig.hard.withTime(2000));
-      expect(easy.depth, 2);
+      expect(easy.depth, 3);
       expect(hard.depth, greaterThan(easy.depth));
     });
 

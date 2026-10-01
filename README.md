@@ -50,7 +50,7 @@ they run in an isolate and in plain Dart.
 
 ### AI
 
-Difficulty is search depth only: Easy 2, Medium 4, Hard 6, with a time cap per
+Difficulty is search depth only: Easy 3, Medium 6, Hard 9, with a time cap per
 move. Easy cannot see begi/treghi; Medium and Hard can. The search runs on a
 background isolate.
 
