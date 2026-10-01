@@ -13,3 +13,6 @@ local.properties
 *.jks
 key.properties
 .DS_Store
+
+# library packages do not commit their lockfile
+packages/*/pubspec.lock

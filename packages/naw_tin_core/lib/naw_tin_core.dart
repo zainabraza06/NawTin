@@ -8,3 +8,5 @@ export 'src/ai/ai.dart';
 export 'src/ai/hint_analyzer.dart';
 export 'src/ai/self_play.dart';
 export 'src/engine/engine.dart';
+export 'src/protocol/protocol.dart';
+export 'src/protocol/snapshot.dart';
