@@ -133,7 +133,10 @@ abstract final class ErrorCodes {
 
 /// WebSocket close codes.
 abstract final class CloseCodes {
-  static const goingAway = 1001;
+  /// The server is restarting (a deploy). WebSocket libraries only let
+  /// applications send 1000 or 3000-4999, so this is not 1001. Clients
+  /// reconnect with the normal backoff.
+  static const goingAway = 4004;
   static const outdated = 4000;
   static const unauthorized = 4001;
   static const replaced = 4002;

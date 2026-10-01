@@ -1,3 +1,5 @@
+import 'dart:math';
+
 /// Display-name validation: 2-16 characters, letters / digits / space / `_` /
 /// `-`, single spaces only, and a profanity filter that sees through common
 /// look-alike substitutions (0 for o, 1 for i, 3 for e, $ for s ...).
@@ -37,3 +39,16 @@ String? validateName(String? raw) {
   }
   return name;
 }
+
+const _adjectives = [
+  'Swift', 'Brave', 'Lucky', 'Calm', 'Bright', 'Clever', 'Cosmic', 'Neon', 'Quiet', 'Bold',
+  'Sunny', 'Misty', 'Royal', 'Rapid', 'Sharp', 'Gentle', 'Golden', 'Lively', 'Witty', 'Noble',
+];
+const _animals = [
+  'Otter', 'Falcon', 'Panda', 'Tiger', 'Heron', 'Lynx', 'Koala', 'Gecko', 'Raven', 'Dolphin',
+  'Bison', 'Fox', 'Owl', 'Whale', 'Eagle', 'Moose', 'Cobra', 'Crane', 'Newt', 'Yak',
+];
+
+/// A friendly default display name such as "SwiftOtter" (always valid).
+String generateName(Random random) =>
+    '${_adjectives[random.nextInt(_adjectives.length)]}${_animals[random.nextInt(_animals.length)]}';

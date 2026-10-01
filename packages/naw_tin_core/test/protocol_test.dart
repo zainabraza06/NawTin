@@ -87,4 +87,25 @@ void main() {
     expect(Msg.sequenced.contains(Msg.ping), isFalse);
     expect(Msg.sequenced.contains(Msg.hello), isFalse);
   });
+
+  group('display names', () {
+    test('generated names are always valid and short', () {
+      final rnd = Random(3);
+      final seen = <String>{};
+      for (var i = 0; i < 1000; i++) {
+        final n = generateName(rnd);
+        expect(validateName(n), n, reason: n);
+        expect(n.length, lessThanOrEqualTo(16));
+        seen.add(n);
+      }
+      expect(seen.length, greaterThan(100));
+    });
+
+    test('the same rules the server enforces', () {
+      expect(validateName('  Sam   Lee '), 'Sam Lee');
+      expect(validateName('Bob'), 'Bob');
+      expect(validateName('sh1t'), isNull);
+      expect(validateName('a'), isNull);
+    });
+  });
 }
