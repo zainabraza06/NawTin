@@ -1,0 +1,20 @@
+name: naw_tin_server
+description: Online play server for Naw Tin (private rooms over WebSockets).
+version: 0.1.0
+publish_to: none
+
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  naw_tin_core:
+    path: ../packages/naw_tin_core
+  shelf: ^1.4.1
+  shelf_web_socket: ^2.0.0
+  web_socket_channel: ^3.0.0
+  http: ^1.2.0
+  dart_jsonwebtoken: ^2.14.0
+
+dev_dependencies:
+  lints: ^4.0.0
+  test: ^1.25.0
