@@ -73,6 +73,11 @@ accepted where the platform allows it (not possible from browsers), but
 
 Only three things are stored about a user: `userId`, `name`, `avatar`.
 
+**Local testing only:** a server started with `NAWTIN_TEST_AUTH=1` also accepts
+fake tokens of the form `test:<uid>`. That mode is off by default, the server
+prints a loud warning when it is on, and it **refuses to start** on Cloud Run
+(`K_SERVICE` / `K_REVISION` present).
+
 ### Version refusal
 
 If `hello.protocol < minProtocol` the server answers
@@ -122,6 +127,9 @@ Mobile networks drop and retry, so every **room-level** client message carries a
   safely **resend** anything that was not acknowledged.
 * The client keeps unacknowledged messages and resends them in order after a
   reconnect. Duplicates are harmless by construction.
+* A message refused with `rate_limited` is **not processed and does not consume
+  its `seq`**: after `retryAfterMs` the client resends it with the same number
+  (sending later numbers first would be answered with `seq_gap`).
 
 ## 4. Client to server messages
 
@@ -139,9 +147,9 @@ Mobile networks drop and retry, so every **room-level** client message carries a
 | `emote` | `{ "id": "nice_one" }` | preset ids only (section 9) |
 | `offer_rematch` | `{}` | after `game_over` |
 | `accept_rematch` | `{}` | answers the opponent's offer |
-| `leave` | `{}` | leaves the lobby, or forfeits a live game |
+| `leave` | `{}` | the explicit Leave button only: leaves the lobby, or **instantly forfeits** a live game |
 | `report` | `{ "userId": "...", "reason": "afk" }` | after a game (Stage 5) |
-| `ping` | `{ "t": 123 }` | heartbeat, every 15 s; unsequenced |
+| `ping` | `{ "n": 123, "rtt": 42 }` | heartbeat every 15 s; unsequenced. `n` is echoed; `rtt` (optional) is the client's last measured round trip, shown to the opponent as a ping indicator |
 
 ### Placement and movement are two-step when a line is made
 
@@ -279,7 +287,7 @@ reconciles to the snapshot (the snapshot always wins).
 | `phutas_available` | `{ lines }` - the mover set up a new threat |
 | `phutas_pressed` | `{}` |
 | `timeout` | `{ seat, count, auto: true|false, disqualified: bool }` |
-| `disconnected` | `{ seat, reconnectDeadline, reason: "dropped"|"left" }` |
+| `disconnected` | `{ seat, reconnectDeadline, reason: "dropped" }` |
 | `reconnected` | `{ seat }` |
 | `emote` | `{ seat, id }` |
 | `game_over` | `{ winner: 0|1|null, reason }` where reason is `tokensReduced`, `noLegalMoves`, `repetition`, `disqualified`, `abandoned` or `forfeit` |
@@ -288,13 +296,23 @@ The facts around one move always arrive in this order:
 `placed|moved` -> `machyas` -> `eaten` -> `begi|treghi` -> `phutas_available` ->
 `game_over`.
 
+### `ack`
+
+```json
+{ "v":1, "t":"ack", "ts":..., "ack": 12 }
+```
+
+Sent when the server receives a sequenced message it has already processed (a
+duplicate). It changes nothing; it just tells the client the highest `seq` the
+server holds, so the client can drop its resend queue.
+
 ### `pong`
 
 ```json
-{ "v":1, "t":"pong", "ts":1760000000123, "t0":123 }
+{ "v":1, "t":"pong", "ts":1760000000123, "n":123 }
 ```
 
-`t0` echoes the client's `ping.t`.
+`n` echoes the client's `ping.n`.
 
 ## 6. Room lifecycle
 
@@ -314,11 +332,11 @@ everyone gone / expired -> status "closed"
 * **Leaving the lobby:** if the host leaves, the room closes (the guest receives
   `room_state` status `closed`). If the guest leaves, the room goes back to
   `waiting` with its remaining time.
-* **Leaving during a game:** `leave` is treated like a dropped connection: the
-  player is marked away (`event disconnected` with `reason: "left"`), the same
-  **45-second reconnect window** applies, and the game is **forfeited after the
-  window** (`game_over` reason `forfeit`) unless the player rejoins in time.
-  A connection that simply drops ends the same way with reason `abandoned`.
+* **Leaving during a game:** only the in-app **Leave game** button (behind a
+  confirmation: "Leave the game? You'll forfeit.") sends `leave`, and it is an
+  **instant forfeit**: `game_over` with reason `forfeit`, no waiting. Clients
+  must never send `leave` for anything else: backgrounding the app, closing it,
+  losing the connection or being killed all keep the 45-second window below.
 * **Seat assignment:** at `start` the server flips a coin (secure RNG) and sends
   `coinFlip`. With `seatAssignment: "engine"` it would follow the engine's
   configured balance instead. On a **rematch the seats swap**, so the player who
