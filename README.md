@@ -50,8 +50,10 @@ they run in an isolate and in plain Dart.
 
 ### AI
 
-Difficulty is search depth only: Easy 3, Medium 6, Hard 9, with a time cap per
-move. Easy cannot see begi/treghi; Medium and Hard can. The search runs on a
+Difficulty is how far ahead the search may look and for how long: Easy up to 6
+moves in 0.4 s, Medium up to 10 in 1 s, Hard up to 16 in 2 s. The search deepens
+one move at a time and stops at the ceiling or the time limit, so a faster phone
+looks further than a slow one. Easy cannot see begi/treghi; Medium and Hard can. The search runs on a
 background isolate.
 
 **When the turn clock runs out** (the usual casual-game practice): the first

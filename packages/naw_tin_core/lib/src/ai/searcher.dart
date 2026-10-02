@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import '../engine/engine.dart';
 import 'ai_config.dart';
 import 'evaluator.dart';
@@ -48,6 +50,15 @@ class Searcher {
   final Stopwatch _clock = Stopwatch();
   int _nodes = 0;
 
+  // Move-ordering memory, reset every search. A quiet move that caused a
+  // cut-off is likely to cause one again in a sibling position (killer: same
+  // ply; history: same step anywhere), so it is tried earlier. Better ordering
+  // means more pruning, which means more depth in the same time.
+  static const int _maxPly = 64;
+  final List<Move?> _killer1 = List<Move?>.filled(_maxPly, null);
+  final List<Move?> _killer2 = List<Move?>.filled(_maxPly, null);
+  final List<int> _history = List<int>.filled((Board.pointCount + 1) * Board.pointCount, 0);
+
   static const int _inf = 1 << 30;
   static const int _ttLimit = 300000;
 
@@ -74,8 +85,11 @@ class Searcher {
       ..start();
     _nodes = 0;
     _tt.clear();
+    _killer1.fillRange(0, _maxPly, null);
+    _killer2.fillRange(0, _maxPly, null);
+    _history.fillRange(0, _history.length, 0);
 
-    var ordered = _order(legal, root, null);
+    var ordered = _order(legal, root, null, 0);
     var best = ordered.first;
     var bestScore = 0;
     var reached = 0;
@@ -159,7 +173,7 @@ class Searcher {
       }
     }
 
-    final moves = _order(Rules.legalMoves(s), s, ttMove);
+    final moves = _order(Rules.legalMoves(s), s, ttMove, ply);
     var best = -_inf;
     Move? bestMove;
     for (final m in moves) {
@@ -171,7 +185,10 @@ class Searcher {
         bestMove = m;
       }
       if (v > alpha) alpha = v;
-      if (alpha >= beta) break;
+      if (alpha >= beta) {
+        if (!m.hasCapture) _rememberCutoff(m, ply, depth);
+        break;
+      }
     }
 
     if (_tt.length > _ttLimit) _tt.clear();
@@ -220,16 +237,36 @@ class Searcher {
 
   // -------------------------------------------------------------- ordering
 
-  /// Best move from the table first, then captures, then well-connected
-  /// destinations.
-  List<Move> _order(List<Move> moves, GameState s, Move? ttMove) {
+  int _hIndex(Move m) => (m.from + 1) * Board.pointCount + m.to;
+
+  void _rememberCutoff(Move m, int ply, int depth) {
+    if (ply < _maxPly && _killer1[ply] != m) {
+      _killer2[ply] = _killer1[ply];
+      _killer1[ply] = m;
+    }
+    final i = _hIndex(m);
+    _history[i] = math.min(_history[i] + depth * depth, 4000);
+  }
+
+  /// Best move from the table first, then captures, then this ply's killer
+  /// moves, then moves with a good history, then well-connected destinations.
+  List<Move> _order(List<Move> moves, GameState s, Move? ttMove, int ply) {
+    final k1 = ply < _maxPly ? _killer1[ply] : null;
+    final k2 = ply < _maxPly ? _killer2[ply] : null;
     int score(Move m) {
       if (m == ttMove) return 100000;
       var v = _pointRank[m.to];
       if (m.hasCapture) {
-        v += 1000;
+        v += 10000;
         // prefer eating a token that is close to a line of its own
         v += _pointRank[m.capture];
+      } else {
+        if (m == k1) {
+          v += 6000;
+        } else if (m == k2) {
+          v += 5000;
+        }
+        v += math.min(_history[_hIndex(m)], 4000);
       }
       return v;
     }

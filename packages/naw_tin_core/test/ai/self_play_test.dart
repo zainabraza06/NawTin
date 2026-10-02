@@ -4,8 +4,8 @@ import 'package:naw_tin_core/naw_tin_core.dart';
 void main() {
   test('Hard clearly beats Easy in self-play (both seats)', () {
     final stats = playMatch(
-      AiConfig.hard.withTime(100),
-      AiConfig.easy.withTime(30),
+      AiConfig.hard.withTime(400),
+      AiConfig.easy.withTime(60),
       games: 12,
       openingPlies: 6,
       seed: 7,

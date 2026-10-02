@@ -55,10 +55,13 @@ void main() {
     });
 
     test('a capture prefers a loose token over a protected one', () {
-      // seat 1 owns the finished line 12-13-14 plus loose 20
+      // seat 1 owns the finished line 12-13-14 plus loose 20. Which step to take
+      // is a matter of lookahead (a deeper search may prefer a quiet set-up
+      // move), so the rule is checked on the capture itself: given the step that
+      // makes a line, the only token that may be eaten is the loose one.
       final s = st([0, 1, 3, 5], [12, 13, 14, 20]);
-      final m = find(s, AiConfig.easy).move;
-      expect(m, const Move.slide(3, 2, capture: 20));
+      final r = Searcher(AiConfig.easy).search(s, onlyStep: const Move.slide(3, 2));
+      expect(r.move, const Move.slide(3, 2, capture: 20));
     });
 
     test('takes a winning capture', () {
@@ -123,7 +126,7 @@ void main() {
       final s = st([0, 2, 9], [20, 22, 13], hand0: 4, hand1: 4);
       final easy = find(s, AiConfig.easy.withTime(2000));
       final hard = find(s, AiConfig.hard.withTime(2000));
-      expect(easy.depth, 3);
+      expect(easy.depth, AiConfig.easy.maxDepth);
       expect(hard.depth, greaterThan(easy.depth));
     });
 
