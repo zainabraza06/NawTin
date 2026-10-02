@@ -70,6 +70,11 @@ class FirebaseTokenVerifier implements TokenVerifier {
     return _certs;
   }
 
+  /// Fetches Google's signing keys once, at startup, so a broken image
+  /// (no CA certificates, no outbound network) shows up in the deploy logs
+  /// instead of at the first player's sign-in. Returns the number of keys.
+  Future<int> warmUp() async => (await _keys()).length;
+
   @override
   Future<AuthUser?> verify(String token) async {
     try {

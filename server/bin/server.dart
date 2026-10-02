@@ -29,6 +29,17 @@ Future<void> main() async {
 
   final server = NawTinServer(config: config, verifier: verifier);
   final http = await server.serve();
+  final v = verifier;
+  if (v is FirebaseTokenVerifier) {
+    // the server keeps running either way; the log line is what to look for
+    try {
+      final n = await v.warmUp();
+      stdout.writeln('auth.certs_ok: fetched $n Google signing keys');
+    } catch (e) {
+      stderr.writeln('auth.certs_failed: cannot fetch Google signing keys ($e). '
+          'Real sign-in will fail until this works (check CA certificates and outbound network).');
+    }
+  }
   stdout.writeln('Naw Tin server listening on :${http.port} '
       '(protocol $protocolVersion, ${config.testAuth ? "TEST AUTH" : "firebase ${config.firebaseProjectId}"})');
 

@@ -37,6 +37,15 @@ void main() {
   setUp(() => Rules.placementRule = PlacementRule.symmetricOpening);
 
   group('Firebase ID token verification', () {
+    test('warmUp fetches the signing keys at startup and reports how many', () async {
+      expect(await verifier().warmUp(), 1);
+    });
+
+    test('warmUp surfaces a broken fetch (no certificates / no network) instead of hiding it', () async {
+      final broken = FirebaseTokenVerifier(project, fetchCerts: () async => throw StateError('no route to host'));
+      await expectLater(broken.warmUp(), throwsA(isA<StateError>()));
+    });
+
     test('accepts a valid anonymous token and returns the stable uid', () async {
       final u = await verifier().verify(token());
       expect(u?.uid, 'firebase-uid-1');

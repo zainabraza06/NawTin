@@ -60,7 +60,24 @@ Open **Settings -> Online test console (debug)** (debug builds only):
 - Let the clock run out: the first timeout plays a move for you, a second one in a
   row loses (same rule as offline).
 
-## 5. Firebase (for the real sign-in, next stage)
+## 5. Real Firebase sign-in on a device
+
+A debug build uses the fake token by default. To test the **real** thing against
+a server running without `NAWTIN_TEST_AUTH`:
+
+```powershell
+# server (note: no NAWTIN_TEST_AUTH)
+$env:FIREBASE_PROJECT_ID="nawtin-41c14"; $env:PORT="8090"; cd server; dart run bin/server.dart
+# app
+flutter build apk --debug --target-platform android-arm64 `
+  --dart-define=NAWTIN_REAL_AUTH=1 --dart-define=NAWTIN_SERVER=ws://<PC-IP>:8090/ws
+```
+
+Release builds always use real sign-in. The step-by-step two-phone script is
+[two_device_test_plan.md](two_device_test_plan.md); putting the server on the
+internet is [deploy_cloud_run.md](deploy_cloud_run.md).
+
+### Firebase facts
 
 | | |
 |---|---|

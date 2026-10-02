@@ -17,7 +17,7 @@ flutter test                         # ~190 tests
 ```
 
 Release builds, signing and the store listing: [docs/PLAY_STORE.md](docs/PLAY_STORE.md).
-Online play with a remote friend (in progress): [docs/online_protocol.md](docs/online_protocol.md), [docs/online_dev.md](docs/online_dev.md), [server/README.md](server/README.md).
+Online play with a remote friend (private rooms): [protocol](docs/online_protocol.md), [running it locally](docs/online_dev.md), [server](server/README.md), [deploying to Cloud Run](docs/deploy_cloud_run.md), [two-device test plan](docs/two_device_test_plan.md), [store and privacy checklist](docs/store_checklist.md).
 
 ## Rules in one screen
 

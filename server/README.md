@@ -38,7 +38,21 @@ so a deployed server can never accept fake tokens.
 | `NAWTIN_ROOM_MINUTES` | waiting-room lifetime | `10` |
 
 Rooms live in memory: run **one instance** (Cloud Run `max-instances=1`,
-`--session-affinity` not needed) for phase 1. See the deployment guide (Stage 6).
+`--session-affinity` not needed) for phase 1. Deployment guide:
+[`docs/deploy_cloud_run.md`](../docs/deploy_cloud_run.md); one-command script:
+[`scripts/deploy_server.ps1`](../scripts/deploy_server.ps1).
+
+## Smoke test of a running server
+
+```
+dart run tool/check.dart http://localhost:8080
+dart run tool/check.dart https://<your-service>.run.app
+```
+
+Checks `/healthz`, the WebSocket, that a **fake token is refused** (so a deployed
+server is not in test mode) and that an unsupported protocol gets the "please
+update" refusal. At startup (real auth mode) the server also fetches Google's
+signing keys once and logs `auth.certs_ok` or `auth.certs_failed`.
 
 ## Tests
 
@@ -48,7 +62,7 @@ dart pub get
 dart test
 ```
 
-88 tests cover: room lifecycle and codes, expiry, illegal-move rejection, the
+92 tests cover: room lifecycle and codes, expiry, illegal-move rejection, the
 two-step capture (protected tokens), the server clock, first and second timeouts
 (including a pending capture), reconnects and the 45 s window, instant forfeit on
 Leave, duplicate / out-of-order messages, rematch seat swaps, auth (including real
