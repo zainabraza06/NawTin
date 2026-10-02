@@ -148,7 +148,7 @@ class _ModeSetupScreenState extends ConsumerState<ModeSetupScreen> {
                 children: [
                   Row(
                     children: [
-                      _Stat(icon: Icons.psychology_rounded, label: 'Search', value: d.depth),
+                      _Stat(icon: Icons.psychology_rounded, label: 'Looks ahead', value: d.depth),
                       SizedBox(width: tk.space2),
                       _Stat(icon: Icons.timer_rounded, label: 'Turn timer', value: d.clock),
                     ],
