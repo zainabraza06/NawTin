@@ -174,6 +174,7 @@ game). `dart run tool/check.dart <server url>` smoke-tests a running server.
 
 | | |
 |---|---|
+| [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) | **start here to ship it:** accounts, Firebase, server, signed release, testing, Play Console, updates |
 | [docs/online_protocol.md](docs/online_protocol.md) | the wire protocol |
 | [docs/online_dev.md](docs/online_dev.md) | running online play locally, real sign-in |
 | [docs/deploy_cloud_run.md](docs/deploy_cloud_run.md) | putting the server on Google Cloud Run |

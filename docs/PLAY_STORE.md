@@ -51,8 +51,14 @@ flutter pub get
 flutter test                                   # all tests should pass
 flutter build appbundle --release ^
     --dart-define=ADS=admob ^
+    --dart-define=NAWTIN_SERVER=wss://<your-service-host>/ws ^
     --obfuscate --split-debug-info=build/symbols
 ```
+
+`NAWTIN_SERVER` is the address of the deployed online server
+([deploy_cloud_run.md](deploy_cloud_run.md)). Without it the release app reports
+online play as unavailable, and it accepts `wss://` only. The whole path from
+accounts to publishing is in [DEPLOYMENT.md](DEPLOYMENT.md).
 
 The upload file is `build/app/outputs/bundle/release/app-release.aab`.
 Keep `build/symbols` for each release so crash traces can be symbolised.
@@ -61,9 +67,10 @@ Version numbers live in `pubspec.yaml` (`version: 0.1.0+1`): the part before
 `+` is the name players see, the number after it is the version code and must
 go up with every upload.
 
-> This repository was developed without an Android SDK on the build machine, so
-> the Gradle changes (release signing, AdMob) have not been compiled here. Run
-> one `flutter build appbundle` and a device test before uploading.
+> Debug and release builds compile, and the release build is checked to contain
+> no debug console or fake sign-in. Release signing needs your own upload key
+> (without `android/key.properties` the build falls back to the debug key and
+> cannot be uploaded). Run one device test of the signed build before uploading.
 
 ## 4. Store listing (copy you can paste)
 
@@ -82,6 +89,8 @@ go up with every upload.
 > **Play your way**
 > - Play against the AI on Easy, Medium or Hard.
 > - Pass the phone to a friend for a two-player game.
+> - Play online with a friend in a private room: share a six-character code, no
+>   account needed, no chat, just a few friendly preset emotes.
 > - Learn everything in the illustrated How to Play, with live demos.
 >
 > **Real tactics, not luck**
@@ -95,7 +104,8 @@ go up with every upload.
 > **Made to feel great**
 > - A glowing neon look, smooth animations and haptic feedback.
 > - Colour-blind friendly tokens, reduce-motion and screen-reader support.
-> - Works offline. Optional rewarded ads unlock hints and a rewind.
+> - Works offline (online rooms need a connection). Optional rewarded ads unlock
+>   hints and a rewind against the AI; there are no ads during an online game.
 
 **Category:** Games > Board. **Tags:** board game, strategy, two player, puzzle.
 
