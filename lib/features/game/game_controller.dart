@@ -21,8 +21,11 @@ const Object _keep = Object();
 /// rewind can restore captured tokens, protection and the stats exactly.
 @immutable
 class HistoryEntry {
-  const HistoryEntry(this.game, this.eaten, this.linesFormed, this.swings);
+  const HistoryEntry(this.game, this.eaten, this.linesFormed, this.swings, this.move);
   final GameState game;
+
+  /// The move that was played from [game].
+  final Move move;
   final List<int> eaten;
   final List<int> linesFormed;
   final List<int> swings;
@@ -340,7 +343,7 @@ class GameController extends Notifier<GameUiState> {
       eaten: move.hasCapture ? bump(s.eaten, mover, 1) : s.eaten,
       linesFormed: bump(s.linesFormed, mover, popCount(result.completedLines)),
       swings: swings,
-      history: [...s.history, HistoryEntry(s.game, s.eaten, s.linesFormed, s.swings)],
+      history: [...s.history, HistoryEntry(s.game, s.eaten, s.linesFormed, s.swings, move)],
       hintText: null,
       hintMove: null,
     );

@@ -18,7 +18,8 @@ GameState st(
       placesLeft: placesLeft,
     );
 
-SearchResult find(GameState s, AiConfig c) => Searcher(c).search(s);
+/// Variety is switched off so a test can expect one particular move.
+SearchResult find(GameState s, AiConfig c) => Searcher(c.withVariety(0)).search(s);
 
 void main() {
   group('Zobrist', () {
@@ -51,7 +52,10 @@ void main() {
     test('Easy blocks a one-move threat', () {
       // seat 1 has 0 and 1; seat 0 must take 2
       final s = st([12, 23], [0, 1], hand0: 5, hand1: 5);
-      expect(find(s, AiConfig.easy).move.to, 2);
+      // fixed depth: how far a clock-limited search gets varies from run to run,
+      // and values this close can flip between depths (see variety_test.dart)
+      final fixed = AiConfig.easy.withDepth(5).withTime(600000).strictTime();
+      expect(find(s, fixed).move.to, 2);
     });
 
     test('a capture prefers a loose token over a protected one', () {
@@ -131,10 +135,11 @@ void main() {
     });
 
     test('the isolate service returns the same kind of move', () async {
-      final s = st([0, 1], [20, 22], hand0: 5, hand1: 5);
+      // an unambiguous win (seat 1 has three loose tokens; eating one ends the game)
+      final s = st([0, 1, 3, 5], [12, 14, 20]);
       final m = await IsolateAiService().chooseMove(s, AiConfig.easy);
-      expect(m.to, 2);
       expect(Rules.isLegal(s, m), isTrue);
+      expect(Rules.apply(s, m).isOver, isTrue, reason: 'should take the win, got $m');
     });
   });
 }

@@ -117,11 +117,15 @@ app and the server share the exact same rules.
 ### AI
 
 Difficulty is how far ahead the search may look and for how long. Depth is
-counted in plies (one player's move): Easy up to 6 plies (3 turns each) in 0.4 s,
-Medium up to 10 (5 turns each) in 1 s, Hard up to 16 (8 turns each) in 2 s. The
-search deepens one ply at a time and stops at the ceiling or the time limit, so a
-faster phone looks further than a slow one; each level has a guaranteed minimum
-depth (3 / 5 / 7) it will overrun the clock a little to reach. It uses
+counted in plies (one player's move): Easy up to 8 plies (4 turns each) in 0.4 s,
+Medium up to 12 (6 turns each) in 1 s, Hard up to 18 (9 turns each) in 2 s, with
+extra depth when few tokens remain. The search deepens one ply at a time and
+stops at the ceiling or the time limit, so a faster phone looks further than a
+slow one; each level has a guaranteed minimum depth (4 / 6 / 8) it will overrun
+the clock a little to reach. Every level picks at random among moves that are
+nearly equally good (by a small margin: Easy 0.3 of a token, Medium 0.15, Hard
+0.08), so it does not play the same game twice and cannot be beaten by replaying
+one winning line. It uses
 principal-variation search, a transposition table, killer/history ordering, late
 move reductions and quiescence, and is checked against plain minimax in the tests. Easy cannot see begi/treghi; Medium and Hard can.
 Everything runs on a background isolate, so the screen never freezes.
@@ -129,6 +133,12 @@ Everything runs on a background isolate, so the screen never freezes.
 Strength, measured in self-play at the real time limits (small samples): the new
 Hard beat the previous Hard 7-1, the new Medium beat the new Easy 7-1, and the new
 Hard beat the new Medium 5-1 with 2 draws.
+
+**Finding the AI's mistakes.** After a game against the AI, tap **Copy game
+record**, paste it into a file and run
+`dart run tool/analyze_game.dart record.txt`: it replays the game, searches every
+AI move deeply and lists the moves that lost value, with the better move. This is
+how to turn "it beat me" into a concrete fix.
 
 **Timeouts** (the usual casual-game practice): the first timeout plays a simple
 legal move for the player (the Easy-level search, never random and never the Hard

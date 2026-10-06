@@ -19,6 +19,10 @@ final class AiConfig {
     this.minDepth = 1,
     this.lateReductions = false,
     this.weights = EvalWeights.standard,
+    this.varietyMargin = 0,
+    this.endgameDepthBonus = 0,
+    this.capturePreference = 0,
+    this.safetyPreference = 0,
   });
 
   final String name;
@@ -50,6 +54,27 @@ final class AiConfig {
   /// The numbers the evaluation judges positions with.
   final EvalWeights weights;
 
+  /// Variety: among the root moves whose value is within this many points of the
+  /// best (100 points = one token), one is picked at random, so the AI does not
+  /// play the same game every time. 0 = always the single best move.
+  final int varietyMargin;
+
+  /// Extra search depth allowed when few tokens remain (small branching makes
+  /// deep calculation cheap, and endgames are decided by long forced lines).
+  final int endgameDepthBonus;
+
+  /// "A bird in the hand": if a move that eats a token is worth within this many
+  /// points of the best move, play it instead. A search that stops on an odd or
+  /// an even depth judges quiet set-ups differently, and without this it will
+  /// sometimes decline a capture it could simply make.
+  final int capturePreference;
+
+  /// If the best move leaves the opponent a line to complete next turn, a move
+  /// worth within this many points that does not is played instead. Search
+  /// values that close are decided by noise (they flip with the search depth),
+  /// and ignoring a one-move threat looks naive.
+  final int safetyPreference;
+
   /// The same config judging positions with other [weights] (tuning, tests).
   AiConfig withWeights(EvalWeights w) => AiConfig(
         name: name,
@@ -61,48 +86,115 @@ final class AiConfig {
         minDepth: minDepth,
         lateReductions: lateReductions,
         weights: w,
+        varietyMargin: varietyMargin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: capturePreference,
+        safetyPreference: safetyPreference,
+      );
+
+  /// The same config with another variety margin (0 = deterministic, for tests).
+  AiConfig withVariety(int margin) => AiConfig(
+        name: name,
+        maxDepth: maxDepth,
+        timeMs: timeMs,
+        seesSwings: seesSwings,
+        avoidRepeat: avoidRepeat,
+        quiesce: quiesce,
+        minDepth: minDepth,
+        lateReductions: lateReductions,
+        weights: weights,
+        varietyMargin: margin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: capturePreference,
+        safetyPreference: safetyPreference,
+      );
+
+  /// The same config with another capture preference (0 = off).
+  AiConfig withCapturePreference(int margin) => AiConfig(
+        name: name,
+        maxDepth: maxDepth,
+        timeMs: timeMs,
+        seesSwings: seesSwings,
+        avoidRepeat: avoidRepeat,
+        quiesce: quiesce,
+        minDepth: minDepth,
+        lateReductions: lateReductions,
+        weights: weights,
+        varietyMargin: varietyMargin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: margin,
+        safetyPreference: safetyPreference,
+      );
+
+  /// The same config with another safety preference (0 = off).
+  AiConfig withSafetyPreference(int margin) => AiConfig(
+        name: name,
+        maxDepth: maxDepth,
+        timeMs: timeMs,
+        seesSwings: seesSwings,
+        avoidRepeat: avoidRepeat,
+        quiesce: quiesce,
+        minDepth: minDepth,
+        lateReductions: lateReductions,
+        weights: weights,
+        varietyMargin: varietyMargin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: capturePreference,
+        safetyPreference: margin,
       );
 
   /// How far past [timeMs] the search may run while still below [minDepth].
   static const int overtimeFactor = 3;
 
-  /// Up to 6 plies (3 turns each) ahead in 0.4 s. Completes lines, blocks threats and sees
-  /// replies several moves deep, but cannot see begi/treghi.
+  /// Up to 8 plies (4 turns each) ahead in 0.4 s. Completes lines, blocks
+  /// threats, sees capture sequences and begi/treghi set-ups, and varies its
+  /// play a little between games.
   static const easy = AiConfig(
     name: 'Easy',
-    maxDepth: 6,
+    maxDepth: 8,
     timeMs: 400,
-    seesSwings: false,
+    seesSwings: true,
     avoidRepeat: false,
-    quiesce: false,
-    minDepth: 3,
+    quiesce: true,
+    minDepth: 4,
+    varietyMargin: 30,
+    capturePreference: 40,
+    safetyPreference: 40,
   );
 
-  /// Up to 10 plies (5 turns each) ahead in 1 s. Also blocks a forming begi and plans
-  /// two-line setups.
+  /// Up to 12 plies (6 turns each) ahead in 1 s. Plans two-line and swinging
+  /// set-ups, calculates endgames further, varies its play.
   static const medium = AiConfig(
     name: 'Medium',
-    maxDepth: 10,
+    maxDepth: 12,
     timeMs: 1000,
     seesSwings: true,
     avoidRepeat: false,
     quiesce: true,
-    minDepth: 5,
+    minDepth: 6,
     lateReductions: true,
+    varietyMargin: 15,
+    endgameDepthBonus: 4,
+    capturePreference: 40,
+    safetyPreference: 40,
   );
 
-  /// Up to 16 plies (8 turns each) ahead in 2 s (a slower phone stops earlier,
-  /// but never before [minDepth]).
-  /// Builds begi/treghi deliberately, even during placement.
+  /// Up to 18 plies (9 turns each) ahead in 2 s (a slower phone stops earlier,
+  /// but never before [minDepth]). Builds begi/treghi deliberately, calculates
+  /// endgames far ahead, avoids repeating itself, varies its play.
   static const hard = AiConfig(
     name: 'Hard',
-    maxDepth: 16,
+    maxDepth: 18,
     timeMs: 2000,
     seesSwings: true,
     avoidRepeat: true,
     quiesce: true,
-    minDepth: 7,
+    minDepth: 8,
     lateReductions: true,
+    varietyMargin: 8,
+    endgameDepthBonus: 8,
+    capturePreference: 40,
+    safetyPreference: 40,
   );
 
   /// The same config with a different clock (tests, self-play, hints).
@@ -116,6 +208,10 @@ final class AiConfig {
         minDepth: minDepth,
         lateReductions: lateReductions,
         weights: weights,
+        varietyMargin: varietyMargin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: capturePreference,
+        safetyPreference: safetyPreference,
       );
 
   AiConfig withDepth(int depth) => AiConfig(
@@ -128,6 +224,10 @@ final class AiConfig {
         minDepth: math.min(minDepth, depth),
         lateReductions: lateReductions,
         weights: weights,
+        varietyMargin: varietyMargin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: capturePreference,
+        safetyPreference: safetyPreference,
       );
 
   /// The same config without the guaranteed minimum depth, for tests that need
@@ -142,5 +242,9 @@ final class AiConfig {
         minDepth: 1,
         lateReductions: lateReductions,
         weights: weights,
+        varietyMargin: varietyMargin,
+        endgameDepthBonus: endgameDepthBonus,
+        capturePreference: capturePreference,
+        safetyPreference: safetyPreference,
       );
 }

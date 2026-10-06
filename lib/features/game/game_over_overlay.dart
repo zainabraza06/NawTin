@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/engine/engine.dart';
 import '../../theme/tokens.dart';
@@ -18,8 +19,12 @@ class GameOverOverlay extends StatefulWidget {
     required this.onRematch,
     required this.onChangeMode,
     required this.onHome,
+    this.record,
     this.prefs = const MotionPrefs(),
   });
+
+  /// The whole game as text (see game_record_text.dart); shown as a button that copies it.
+  final String? record;
 
   final GameUiState ui;
   final VoidCallback onRematch;
@@ -99,6 +104,19 @@ class _GameOverOverlayState extends State<GameOverOverlay>
                     _StatRow(label: 'Begi / Treghi', values: ui.swings, names: ui.names),
                     SizedBox(height: tk.space3),
                     NawButton(label: 'Rematch', icon: Icons.replay_rounded, onPressed: widget.onRematch),
+                    if (widget.record != null)
+                      TextButton.icon(
+                        key: const ValueKey('copy-record'),
+                        onPressed: () async {
+                          await Clipboard.setData(ClipboardData(text: widget.record!));
+                          if (!context.mounted) return;
+                          ScaffoldMessenger.of(context)
+                            ..hideCurrentSnackBar()
+                            ..showSnackBar(const SnackBar(content: Text('Game record copied. Paste it to share.')));
+                        },
+                        icon: const Icon(Icons.copy_all_rounded, size: 18),
+                        label: const Text('Copy game record'),
+                      ),
                     SizedBox(height: tk.space1),
                     Row(
                       children: [

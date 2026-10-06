@@ -42,14 +42,16 @@ class _Abort implements Exception {
 ///    placement, and the closing double under the original rule), so the score is only negated, and the
 ///    window only flipped, when the side to move actually changes.
 class Searcher {
-  Searcher(this.cfg);
+  Searcher(this.cfg, {math.Random? random}) : _random = random ?? math.Random();
 
   final AiConfig cfg;
+  final math.Random _random;
 
   final Map<int, _Entry> _tt = {};
   final Stopwatch _clock = Stopwatch();
   int _nodes = 0;
   int _reached = 0; // deepest iteration completed in this search
+  bool _selecting = false; // the final choice among near-equal moves is running
 
   // Move-ordering memory, reset every search. A quiet move that caused a
   // cut-off is likely to cause one again in a sibling position (killer: same
@@ -96,8 +98,11 @@ class Searcher {
     var bestScore = 0;
     var reached = 0;
 
+    // few tokens left: branching is small, so calculate further
+    final tokens = root.totalTokens(0) + root.totalTokens(1);
+    final maxDepth = cfg.maxDepth + (tokens <= 8 ? cfg.endgameDepthBonus : (tokens <= 11 ? cfg.endgameDepthBonus ~/ 2 : 0));
     try {
-      for (var depth = 1; depth <= cfg.maxDepth; depth++) {
+      for (var depth = 1; depth <= maxDepth; depth++) {
         var alpha = -_inf;
         Move iterBest = ordered.first;
         var iterScore = -_inf;
@@ -137,7 +142,122 @@ class Searcher {
     } on _Abort {
       // out of time mid-iteration: keep the last completed depth
     }
+    if (reached >= 2 && bestScore.abs() < Evaluator.win - 200) {
+      _selecting = true;
+      try {
+        best = _chooseAmongNearBest(root, ordered, best, bestScore, reached);
+      } finally {
+        _selecting = false;
+      }
+    }
     return SearchResult(best, bestScore, reached, _nodes);
+  }
+
+  /// The exact value of [s] for the side to move, searched to [depth] plies with
+  /// a full window (no early stop, no time limit beyond the usual cap). Used by
+  /// analysis tools; unlike [search] it also works when there is one legal move.
+  int valueOf(GameState s, int depth) {
+    _clock
+      ..reset()
+      ..start();
+    _nodes = 0;
+    _reached = depth; // do not stretch the clock: analysis sets its own limits
+    _tt.clear();
+    _killer1.fillRange(0, _maxPly, null);
+    _killer2.fillRange(0, _maxPly, null);
+    _history.fillRange(0, _history.length, 0);
+    try {
+      return _negamax(s, depth, -_inf, _inf, 0);
+    } on _Abort {
+      return Evaluator.evaluate(s, s.turn, cfg);
+    }
+  }
+
+  /// The final choice among moves that are about equally good. Values that close
+  /// are decided by noise (they flip between odd and even search depths), so the
+  /// choice is made on principle instead:
+  ///   1. a move that eats a token ([AiConfig.capturePreference]);
+  ///   2. if the best move leaves the opponent a line to complete next turn, a
+  ///      nearly-as-good move that does not ([AiConfig.safetyPreference]);
+  ///   3. otherwise a random one of the nearly-equal moves, so the AI does not
+  ///      play the same game every time ([AiConfig.varietyMargin]).
+  /// A move qualifies with an exact value within the margin of the best one.
+  Move _chooseAmongNearBest(GameState root, List<Move> ordered, Move best, int bestScore, int depth) {
+    final reach = [cfg.varietyMargin, cfg.capturePreference, cfg.safetyPreference].reduce(math.max);
+    if (reach <= 0) return best;
+    // Candidates: every move within twice the largest margin at the last depth.
+    // Their values are then averaged with the value one depth shallower, which
+    // cancels the odd/even oscillation of the search (a quiet move can look
+    // 50 points better or worse depending on the parity of the depth).
+    final wide = reach * 2;
+    final deep = <Move, int>{best: bestScore};
+    // captures are tested first, so the capture rule still works if time runs out
+    final order = [
+      ...ordered.where((m) => m != best && m.hasCapture),
+      ...ordered.where((m) => m != best && !m.hasCapture),
+    ];
+    final line = bestScore - wide;
+    try {
+      for (final m in order) {
+        final child = Rules.apply(root, m);
+        final penalty = _repeatPenalty(root, child);
+        // cheap pass/fail test first; the exact value only for the few that pass
+        final quick = _childScore(root, child, depth - 1, line - 1 + penalty, line + penalty, 1) - penalty;
+        if (quick < line) continue;
+        deep[m] = _childScore(root, child, depth - 1, line - 1 + penalty, _inf, 1) - penalty;
+      }
+    } on _Abort {
+      // keep what was found so far
+    }
+    final values = <Move, int>{};
+    var smoothed = depth >= 3 && deep.length > 1;
+    if (smoothed) {
+      try {
+        for (final e in deep.entries) {
+          final child = Rules.apply(root, e.key);
+          var w = _childScore(root, child, depth - 2, -_inf, _inf, 1);
+          w -= _repeatPenalty(root, child);
+          values[e.key] = (e.value + w) ~/ 2;
+        }
+      } on _Abort {
+        smoothed = false;
+      }
+    }
+    if (!smoothed) {
+      values
+        ..clear()
+        ..addAll(deep);
+    }
+    final top = values.values.reduce(math.max);
+    final leader = values.entries.firstWhere((e) => e.value == top).key;
+    int gap(Move m) => top - values[m]!;
+
+    bool unsafe(Move m) {
+      final child = Rules.apply(root, m);
+      if (child.isOver) return false;
+      return Analysis.threatLines(child, 1 - root.turn) != 0 && child.turn != root.turn;
+    }
+
+    if (cfg.capturePreference > 0) {
+      // a capture that is nearly as good as the best move wins; variety then
+      // only chooses among the captures (never trades one for a quiet move)
+      final caps = [for (final m in values.keys) if (m.hasCapture && gap(m) <= cfg.capturePreference) m];
+      if (caps.isNotEmpty) {
+        final topCap = caps.map((m) => values[m]!).reduce(math.max);
+        final pool = [for (final m in caps) if (topCap - values[m]! <= cfg.varietyMargin) m];
+        return pool[_random.nextInt(pool.length)];
+      }
+    }
+    var pool = [for (final m in values.keys) if (gap(m) <= cfg.varietyMargin) m];
+    if (cfg.safetyPreference > 0 && !leader.hasCapture && unsafe(leader)) {
+      final safe = [for (final m in values.keys) if (gap(m) <= cfg.safetyPreference && !unsafe(m)) m];
+      if (safe.isNotEmpty) {
+        final topSafe = safe.map((m) => values[m]!).reduce(math.max);
+        pool = [for (final m in safe) if (topSafe - values[m]! <= cfg.varietyMargin) m];
+      }
+    }
+    if (pool.isEmpty) pool = [leader];
+    return pool[_random.nextInt(pool.length)];
   }
 
   // ------------------------------------------------------------ recursion
@@ -153,7 +273,10 @@ class Searcher {
   int _negamax(GameState s, int depth, int alpha, int beta, int ply) {
     _nodes++;
     if ((_nodes & 1023) == 0) {
-      final limit = _reached >= cfg.minDepth ? cfg.timeMs : cfg.timeMs * AiConfig.overtimeFactor;
+      var limit = _reached >= cfg.minDepth ? cfg.timeMs : cfg.timeMs * AiConfig.overtimeFactor;
+      // choosing among near-equal moves gets some extra time of its own, so a
+      // slow or busy phone still gets to apply the capture / safety rules
+      if (_selecting) limit += cfg.timeMs ~/ 2;
       if (_clock.elapsedMilliseconds > limit) throw const _Abort();
     }
     final result = s.result;

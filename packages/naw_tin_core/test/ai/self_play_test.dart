@@ -1,13 +1,18 @@
 import 'package:test/test.dart';
 import 'package:naw_tin_core/naw_tin_core.dart';
 
+/// Self-play tests compare strengths, so the AI's deliberate randomness (variety
+/// and the capture / safety preferences) is switched off: the same games are
+/// played every run.
+AiConfig steady(AiConfig c) => c.withVariety(0).withCapturePreference(0).withSafetyPreference(0);
+
 void main() {
   // Compared by search depth (not by clock) so the result does not depend on how
   // fast the machine is.
   test('Hard clearly beats Easy in self-play (both seats)', () {
     final stats = playMatch(
-      AiConfig.hard.withDepth(6).withTime(600000).strictTime(),
-      AiConfig.easy.withDepth(3).withTime(600000).strictTime(),
+      steady(AiConfig.hard.withDepth(6).withTime(600000).strictTime()),
+      steady(AiConfig.easy.withDepth(3).withTime(600000).strictTime()),
       games: 12,
       openingPlies: 6,
       seed: 7,
@@ -19,8 +24,8 @@ void main() {
 
   test('Medium beats Easy in self-play', () {
     final stats = playMatch(
-      AiConfig.medium.withDepth(5).withTime(600000).strictTime(),
-      AiConfig.easy.withDepth(3).withTime(600000).strictTime(),
+      steady(AiConfig.medium.withDepth(5).withTime(600000).strictTime()),
+      steady(AiConfig.easy.withDepth(3).withTime(600000).strictTime()),
       games: 30,
       openingPlies: 6,
       seed: 11,
@@ -29,7 +34,7 @@ void main() {
   }, timeout: const Timeout(Duration(minutes: 4)));
 
   test('self-play games are legal from start to finish', () {
-    final o = playGame(AiConfig.easy.withTime(20), AiConfig.easy.withTime(20),
+    final o = playGame(steady(AiConfig.easy.withTime(20)), steady(AiConfig.easy.withTime(20)),
         openingPlies: 4, seed: 3, maxPlies: 200);
     expect(o.plies, greaterThan(10));
   });

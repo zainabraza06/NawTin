@@ -40,8 +40,15 @@ void main() {
   setUp(() => Rules.placementRule = PlacementRule.symmetricOpening);
 
   group('the pruned search finds exactly what plain minimax finds', () {
-    // Easy has no quiescence and no repetition malus, so a plain minimax is a fair referee.
-    final cfg = AiConfig.easy.withTime(600000);
+    // No quiescence, no repetition malus and no variety: a plain minimax is a fair referee.
+    const cfg = AiConfig(
+      name: 'plain',
+      maxDepth: 8,
+      timeMs: 600000,
+      seesSwings: false,
+      avoidRepeat: false,
+      quiesce: false,
+    );
 
     test('score at depth 3 equals plain minimax on 40 positions (PVS, killers, history, TT)', () {
       for (final s in samplePositions(40)) {

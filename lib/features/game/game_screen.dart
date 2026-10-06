@@ -25,6 +25,7 @@ import 'ad_gate_sheet.dart';
 import 'announcements.dart';
 import 'game_controller.dart';
 import 'game_over_overlay.dart';
+import 'game_record_text.dart';
 import 'pause_overlay.dart';
 import '../../services/haptics.dart';
 
@@ -376,6 +377,7 @@ class _GameScreenState extends ConsumerState<GameScreen>
                   onRematch: ctl.rematch,
                   onChangeMode: () => Navigator.of(context).maybePop(),
                   onHome: _goHome,
+                  record: gameRecordText(ui, ref.read(setupProvider)),
                 ),
             ],
           ),
