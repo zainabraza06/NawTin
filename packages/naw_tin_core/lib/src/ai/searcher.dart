@@ -49,6 +49,7 @@ class Searcher {
   final Map<int, _Entry> _tt = {};
   final Stopwatch _clock = Stopwatch();
   int _nodes = 0;
+  int _reached = 0; // deepest iteration completed in this search
 
   // Move-ordering memory, reset every search. A quiet move that caused a
   // cut-off is likely to cause one again in a sibling position (killer: same
@@ -84,6 +85,7 @@ class Searcher {
       ..reset()
       ..start();
     _nodes = 0;
+    _reached = 0;
     _tt.clear();
     _killer1.fillRange(0, _maxPly, null);
     _killer2.fillRange(0, _maxPly, null);
@@ -100,9 +102,16 @@ class Searcher {
         Move iterBest = ordered.first;
         var iterScore = -_inf;
         final scores = <Move, int>{};
+        var first = true;
         for (final m in ordered) {
           final child = Rules.apply(root, m);
-          var v = _childScore(root, child, depth - 1, alpha, _inf, 1);
+          // principal variation search: the best-so-far move gets the full
+          // window; the others only have to prove they are not better
+          var v = first
+              ? _childScore(root, child, depth - 1, alpha, _inf, 1)
+              : _childScore(root, child, depth - 1, alpha, alpha + 1, 1);
+          if (!first && v > alpha) v = _childScore(root, child, depth - 1, alpha, _inf, 1);
+          first = false;
           v -= _repeatPenalty(root, child);
           scores[m] = v;
           if (v > iterScore) {
@@ -115,13 +124,15 @@ class Searcher {
         best = iterBest;
         bestScore = iterScore;
         reached = depth;
+        _reached = depth;
         ordered = [
           iterBest,
           ...ordered.where((m) => m != iterBest).toList()
             ..sort((a, b) => scores[b]!.compareTo(scores[a]!)),
         ];
         if (bestScore.abs() >= Evaluator.win - 200) break; // forced result
-        if (_clock.elapsedMilliseconds > cfg.timeMs * 0.6) break; // next is too dear
+        // next iteration is too dear (but never stop before the guaranteed depth)
+        if (depth >= cfg.minDepth && _clock.elapsedMilliseconds > cfg.timeMs * 0.6) break;
       }
     } on _Abort {
       // out of time mid-iteration: keep the last completed depth
@@ -141,8 +152,9 @@ class Searcher {
 
   int _negamax(GameState s, int depth, int alpha, int beta, int ply) {
     _nodes++;
-    if ((_nodes & 1023) == 0 && _clock.elapsedMilliseconds > cfg.timeMs) {
-      throw const _Abort();
+    if ((_nodes & 1023) == 0) {
+      final limit = _reached >= cfg.minDepth ? cfg.timeMs : cfg.timeMs * AiConfig.overtimeFactor;
+      if (_clock.elapsedMilliseconds > limit) throw const _Abort();
     }
     final result = s.result;
     if (result != null) {
@@ -174,11 +186,34 @@ class Searcher {
     }
 
     final moves = _order(Rules.legalMoves(s), s, ttMove, ply);
+    final k1 = ply < _maxPly ? _killer1[ply] : null;
+    final k2 = ply < _maxPly ? _killer2[ply] : null;
     var best = -_inf;
     Move? bestMove;
+    var index = 0;
     for (final m in moves) {
       final child = Rules.apply(s, m);
-      var v = _childScore(s, child, depth - 1, alpha, beta, ply + 1);
+      int v;
+      if (index == 0) {
+        v = _childScore(s, child, depth - 1, alpha, beta, ply + 1);
+      } else {
+        // later moves: a cheap test against the best so far, looked at
+        // properly (full depth, then full window) only if they beat it
+        var d = depth - 1;
+        final reducible = cfg.lateReductions &&
+            index >= 3 &&
+            depth >= 3 &&
+            !m.hasCapture &&
+            m != ttMove &&
+            m != k1 &&
+            m != k2 &&
+            !child.isOver;
+        if (reducible) d -= (index >= 8 && depth >= 5) ? 2 : 1;
+        v = _childScore(s, child, d, alpha, alpha + 1, ply + 1);
+        if (v > alpha && d < depth - 1) v = _childScore(s, child, depth - 1, alpha, alpha + 1, ply + 1);
+        if (v > alpha && v < beta) v = _childScore(s, child, depth - 1, alpha, beta, ply + 1);
+      }
+      index++;
       v -= _repeatPenalty(s, child);
       if (v > best) {
         best = v;

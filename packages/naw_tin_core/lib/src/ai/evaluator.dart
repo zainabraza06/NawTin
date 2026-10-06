@@ -1,5 +1,6 @@
 import '../engine/engine.dart';
 import 'ai_config.dart';
+import 'eval_weights.dart';
 
 /// Static evaluation of a position, from the point of view of one seat.
 ///
@@ -30,22 +31,24 @@ abstract final class Evaluator {
     final endgame = myTotal <= 4 || theirTotal <= 4;
 
     // phase weights
-    var wMaterial = 100, wLine = 8, wProtect = 4, wThreat = 16, wDouble = 30;
-    var wMobility = 0, wBlocked = 0, wConn = 2, wSwing = 10, wExposure = 14;
+    final w = cfg.weights;
+    var wMaterial = w.material, wLine = w.line, wProtect = w.protect, wThreat = w.threat, wDouble = w.doubleThreat;
+    var wMobility = 0, wBlocked = 0, wConn = w.conn, wSwing = w.swing;
+    final wExposure = w.exposure;
     if (placement) {
-      wConn = 4;
-      wThreat = 20;
-      wSwing = 14;
+      wConn = w.connPlace;
+      wThreat = w.threatPlace;
+      wSwing = w.swingPlace;
     } else {
-      wMobility = 4;
-      wBlocked = 5;
+      wMobility = w.mobilityMove;
+      wBlocked = w.blockedMove;
     }
     if (endgame) {
-      wMaterial = 160;
-      wMobility = 7;
-      wBlocked = 8;
-      wConn = 1;
-      wSwing = 5;
+      wMaterial = w.materialEnd;
+      wMobility = w.mobilityEnd;
+      wBlocked = w.blockedEnd;
+      wConn = w.connEnd;
+      wSwing = w.swingEnd;
     }
 
     var score = wMaterial * (myTotal - theirTotal);
@@ -96,7 +99,7 @@ abstract final class Evaluator {
 
     if (cfg.seesSwings) {
       score += wSwing *
-          (_swingPotential(mine, theirs) - _swingPotential(theirs, mine)) ~/ 20;
+          (_swingPotential(mine, theirs, w) - _swingPotential(theirs, mine, w)) ~/ 20;
 
       // an armed setup whose fixed tokens the enemy is about to eat
       if (theirThreat > 0 && SwingPattern.armed(mine, theirs).isNotEmpty) {
@@ -112,21 +115,29 @@ abstract final class Evaluator {
   /// Progress towards begi/treghi: squared count of fixed tokens in place for
   /// every pattern the enemy has not blocked, a bonus for a swinging token on
   /// a stop, and a big bonus when the setup is armed and ready to swing.
-  static int _swingPotential(int own, int opp) {
+  static int _swingPotential(int own, int opp, EvalWeights w) {
     var total = 0;
-    for (final p in SwingPattern.all) {
-      if ((opp & (p.fixedMask | p.stopsMask)) != 0) continue;
-      final have = popCount(own & p.fixedMask);
-      final need = popCount(p.fixedMask);
-      if (have < need - 2) continue; // too far away to matter yet
-      final isTreghi = p.kind == PatternKind.treghi;
+    final pats = SwingPattern.all;
+    for (var i = 0; i < pats.length; i++) {
+      final p = pats[i];
+      final fixed = p.fixedMask;
+      final held = own & fixed;
+      if ((held & (held - 1)) == 0) continue; // fewer than two fixed tokens: never matters
+      final have = popCount(held);
+      if (have < _need[i] - 2) continue; // too far away to matter yet
+      if ((opp & (fixed | p.stopsMask)) != 0) continue; // the enemy blocks it
+      final isTreghi = _isTreghi[i];
       final onStop = (own & p.stopsMask) != 0 ? 1 : 0;
-      if (have == need && onStop == 1) {
-        total += isTreghi ? 260 : 120; // armed
+      if (have == _need[i] && onStop == 1) {
+        total += isTreghi ? w.armedTreghi : w.armedBegi; // armed
       } else {
-        total += have * have * (isTreghi ? 5 : 8) + onStop * 12;
+        total += have * have * (isTreghi ? w.progTreghi : w.progBegi) + onStop * w.onStop;
       }
     }
     return total;
   }
+
+  // per-pattern constants, computed once (same order as SwingPattern.all)
+  static final List<int> _need = [for (final p in SwingPattern.all) popCount(p.fixedMask)];
+  static final List<bool> _isTreghi = [for (final p in SwingPattern.all) p.kind == PatternKind.treghi];
 }

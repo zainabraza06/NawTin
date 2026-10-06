@@ -8,9 +8,9 @@ import '../../services/prefs_store.dart';
 enum GameMode { vsAi, friend }
 
 enum Difficulty {
-  easy('Easy', 'Up to 6 moves', 120, 'Completes lines, blocks threats and sees a few moves ahead. Cannot see begi or treghi.'),
-  medium('Medium', 'Up to 10 moves', 90, 'Also blocks a forming begi and plans two-line setups.'),
-  hard('Hard', 'Up to 16 moves', 60, 'Looks furthest ahead. Builds begi and treghi on purpose, even during placement.');
+  easy('Easy', 'Up to 3 turns each', 120, 'Completes lines, blocks threats and sees a few moves ahead. Cannot see begi or treghi.'),
+  medium('Medium', 'Up to 5 turns each', 90, 'Also blocks a forming begi and plans two-line setups.'),
+  hard('Hard', 'Up to 8 turns each', 60, 'Looks furthest ahead. Builds begi and treghi on purpose, even during placement.');
 
   const Difficulty(this.label, this.depth, this.turnSeconds, this.blurb);
   final String label;

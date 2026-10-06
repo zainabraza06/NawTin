@@ -2,10 +2,12 @@ import 'package:test/test.dart';
 import 'package:naw_tin_core/naw_tin_core.dart';
 
 void main() {
+  // Compared by search depth (not by clock) so the result does not depend on how
+  // fast the machine is.
   test('Hard clearly beats Easy in self-play (both seats)', () {
     final stats = playMatch(
-      AiConfig.hard.withTime(400),
-      AiConfig.easy.withTime(60),
+      AiConfig.hard.withDepth(6).withTime(600000).strictTime(),
+      AiConfig.easy.withDepth(3).withTime(600000).strictTime(),
       games: 12,
       openingPlies: 6,
       seed: 7,
@@ -17,8 +19,8 @@ void main() {
 
   test('Medium beats Easy in self-play', () {
     final stats = playMatch(
-      AiConfig.medium.withTime(100),
-      AiConfig.easy.withTime(30),
+      AiConfig.medium.withDepth(5).withTime(600000).strictTime(),
+      AiConfig.easy.withDepth(3).withTime(600000).strictTime(),
       games: 30,
       openingPlies: 6,
       seed: 11,

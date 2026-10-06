@@ -116,10 +116,14 @@ app and the server share the exact same rules.
 
 ### AI
 
-Difficulty is how far ahead the search may look and for how long: Easy up to 6
-moves in 0.4 s, Medium up to 10 in 1 s, Hard up to 16 in 2 s. The search deepens
-one move at a time and stops at the ceiling or the time limit, so a faster phone
-looks further than a slow one. Easy cannot see begi/treghi; Medium and Hard can.
+Difficulty is how far ahead the search may look and for how long. Depth is
+counted in plies (one player's move): Easy up to 6 plies (3 turns each) in 0.4 s,
+Medium up to 10 (5 turns each) in 1 s, Hard up to 16 (8 turns each) in 2 s. The
+search deepens one ply at a time and stops at the ceiling or the time limit, so a
+faster phone looks further than a slow one; each level has a guaranteed minimum
+depth (3 / 5 / 7) it will overrun the clock a little to reach. It uses
+principal-variation search, a transposition table, killer/history ordering, late
+move reductions and quiescence, and is checked against plain minimax in the tests. Easy cannot see begi/treghi; Medium and Hard can.
 Everything runs on a background isolate, so the screen never freezes.
 
 Strength, measured in self-play at the real time limits (small samples): the new
